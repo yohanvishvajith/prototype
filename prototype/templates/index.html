@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sri Lanka Rice Supply Chain Blockchain Traceability System</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+
+  <body>
+    <header class="site-header">
+      <h1 class="site-title">
+        Sri Lanka Rice Supply Chain<br />Blockchain Traceability System
+      </h1>
+
+      <nav class="tabs" aria-label="Primary">
+        <ul>
+          <li class="tab active">
+            <a
+              href="#"
+              id="tab-dashboard"
+              role="tab"
+              aria-controls="dashboard"
+              aria-selected="true"
+              >Dashboard</a
+            >
+          </li>
+          <li class="tab">
+            <a
+              href="#"
+              id="tab-manage-user"
+              role="tab"
+              aria-controls="manage-user"
+              aria-selected="false"
+              >Manage User</a
+            >
+          </li>
+          <li class="tab">
+            <a
+              href="#"
+              id="tab-analytics"
+              role="tab"
+              aria-controls="analytics"
+              aria-selected="false"
+              >Analytics</a
+            >
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <section
+        id="dashboard"
+        class="tab-panel"
+        aria-labelledby="tab-dashboard"
+        hidden
+      >
+        <h2>Dashboard</h2>
+        <div class="stats-grid">
+          <div class="stat-card farmers">
+            <div class="stat-icon" aria-hidden="true">🌾</div>
+            <div>
+              <div class="stat-value" id="total-farmers">-</div>
+              <div class="stat-label">Total Farmers</div>
+            </div>
+          </div>
+          <div class="stat-card collectors">
+            <div class="stat-icon" aria-hidden="true">🚜</div>
+            <div>
+              <div class="stat-value" id="total-collectors">-</div>
+              <div class="stat-label">Total Collectors</div>
+            </div>
+          </div>
+          <div class="stat-card millers">
+            <div class="stat-icon" aria-hidden="true">🏭</div>
+            <div>
+              <div class="stat-value" id="total-millers">-</div>
+              <div class="stat-label">Total Millers</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top: 12px">
+          <label
+            for="paddy-type-select"
+            style="
+              display: block;
+              margin-bottom: 6px;
+              font-size: 13px;
+              color: #374151;
+            "
+            >Paddy Type</label
+          >
+          <select
+            id="paddy-type-select"
+            style="
+              padding: 6px;
+              border-radius: 6px;
+              border: 1px solid #d1d5db;
+              min-width: 220px;
+              margin-bottom: 8px;
+            "
+          >
+            <option value="">All paddy types</option>
+          </select>
+          <div
+            style="
+              height: 200px;
+              max-width: 800px;
+              margin-top: 8px;
+              position: relative;
+            "
+          >
+            <canvas id="paddy-chart" aria-label="Paddy stock by role"></canvas>
+          </div>
+        </div>
+        <p style="margin-top: 10px">
+          Welcome to the dashboard. Select a tab to view content.
+        </p>
+      </section>
+
+      <section
+        id="manage-user"
+        class="tab-panel"
+        aria-labelledby="tab-manage-user"
+        hidden
+      >
+        <h2>Manage User</h2>
+
+        <div class="table-wrap">
+          <table
+            id="user-table"
+            class="data-table"
+            aria-describedby="user-table-desc"
+          >
+            <caption id="user-table-desc">
+              List of users
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">User ID</th>
+                <th scope="col">Name</th>
+                <th scope="col">User Type</th>
+                <th scope="col">Location</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- rows will be added here -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="controls">
+          <button id="add-user-btn" class="btn">Add User</button>
+        </div>
+
+        <!-- Add User Modal -->
+        <div
+          id="user-modal"
+          class="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-hidden="true"
+          hidden
+        >
+          <div class="modal-content" role="document">
+            <header class="modal-header">
+              <h3>Add User</h3>
+            </header>
+            <form id="user-form">
+              <label>
+                User Type
+                <select name="userType">
+                  <option selected>Farmer</option>
+                  <option>Collecter</option>
+                  <option>Miller</option>
+                  <option>PMB</option>
+                </select>
+              </label>
+              <div id="type-fields">
+                <!-- fields rendered by JS -->
+              </div>
+
+              <div id="paddy-section">
+                <label>Paddy stock</label>
+                <div class="paddy-controls">
+                  <button type="button" id="add-paddy-btn" class="btn">
+                    Add Paddy
+                  </button>
+                </div>
+                <div id="paddy-list"></div>
+              </div>
+
+              <div class="modal-actions">
+                <button type="button" id="cancel-btn" class="btn">
+                  Cancel
+                </button>
+                <button type="submit" class="btn primary">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="analytics"
+        class="tab-panel"
+        aria-labelledby="tab-analytics"
+        hidden
+      >
+        <h2>Analytics</h2>
+        <p>Placeholder analytics content.</p>
+      </section>
+    </main>
+
+    <script>
+      // Tab switching + modal handling
+      document.addEventListener("DOMContentLoaded", function () {
+        const tabAnchors = document.querySelectorAll(".tabs .tab a");
+        const tabs = document.querySelectorAll(".tab");
+        const panels = document.querySelectorAll(".tab-panel");
+
+        function activateTab(index) {
+          tabs.forEach((t, i) => {
+            const a = t.querySelector("a");
+            const selected = i === index;
+            if (selected) {
+              t.classList.add("active");
+              panels[i].hidden = false;
+              a.setAttribute("aria-selected", "true");
+            } else {
+              t.classList.remove("active");
+              panels[i].hidden = true;
+              a.setAttribute("aria-selected", "false");
+            }
+          });
+        }
+
+        tabAnchors.forEach((a, i) => {
+          a.addEventListener("click", function (e) {
+            e.preventDefault();
+            activateTab(i);
+          });
+        });
+
+        // Modal behavior
+        const addBtn = document.getElementById("add-user-btn");
+        const modal = document.getElementById("user-modal");
+        const modalContent = modal && modal.querySelector(".modal-content");
+        const cancelBtn = document.getElementById("cancel-btn");
+        const form = document.getElementById("user-form");
+        const tbody = document.querySelector("#user-table tbody");
+        let lastFocused = null;
+
+        // load users from server and populate table
+        async function loadUsers() {
+          try {
+            const res = await fetch("/api/users");
+            const rows = await res.json();
+            tbody.innerHTML = "";
+            rows.forEach((r) => {
+              const displayId =
+                r.user_code || r.nic || r.company_register_number || "";
+              const displayName = r.full_name || r.company_name || "";
+              const displayLocation = r.address || "";
+              const tr = document.createElement("tr");
+              tr.innerHTML = `<td>${escapeHtml(displayId)}</td><td>${escapeHtml(
+                displayName
+              )}</td><td>${escapeHtml(r.user_type)}</td><td>${escapeHtml(
+                displayLocation
+              )}</td>`;
+              tbody.appendChild(tr);
+            });
+          } catch (err) {
+            console.error("Failed loading users", err);
+          }
+        }
+
+        // Paddy types handling
+        let __paddyTypes = [];
+        async function fetchPaddyTypes() {
+          try {
+            const res = await fetch("/api/paddy_types");
+            if (!res.ok) return [];
+            const data = await res.json();
+            return Array.isArray(data) ? data : [];
+          } catch (e) {
+            return [];
+          }
+        }
+
+        function createPaddyRow(types) {
+          const wrap = document.createElement("div");
+          wrap.className = "paddy-row";
+          const sel = document.createElement("select");
+          sel.name = "paddyType";
+          const ph = document.createElement("option");
+          ph.value = "";
+          ph.textContent = "Select paddy type";
+          sel.appendChild(ph);
+          types.forEach((t) => {
+            const o = document.createElement("option");
+            o.value = t.name || t.id || "";
+            o.textContent = t.name || String(t.id || "");
+            sel.appendChild(o);
+          });
+          const qty = document.createElement("input");
+          qty.type = "number";
+          qty.name = "paddyQty";
+          qty.min = "0";
+          qty.step = "0.01";
+          qty.placeholder = "Quantity (kg)";
+          const rem = document.createElement("button");
+          rem.type = "button";
+          rem.className = "btn";
+          rem.textContent = "Remove";
+          rem.addEventListener("click", () => wrap.remove());
+          wrap.appendChild(sel);
+          wrap.appendChild(qty);
+          wrap.appendChild(rem);
+          return wrap;
+        }
+
+        function openModal() {
+          lastFocused = document.activeElement;
+          modal.hidden = false;
+          modal.setAttribute("aria-hidden", "false");
+          // render fields for currently selected type (in case modal reused)
+          const currentType = form.querySelector('[name="userType"]')
+            ? form.querySelector('[name="userType"]').value
+            : "Farmer";
+          renderTypeFields(currentType);
+          // load paddy types for the add-paddy UI
+          (async () => {
+            __paddyTypes = await fetchPaddyTypes();
+            // clear any existing rows
+            const list = document.getElementById("paddy-list");
+            if (list) list.innerHTML = "";
+          })();
+          // focus the first input/select inside the modal
+          const first =
+            modalContent && modalContent.querySelector("input, select");
+          first && first.focus();
+        }
+
+        function closeModal() {
+          modal.hidden = true;
+          modal.setAttribute("aria-hidden", "true");
+          form.reset();
+          lastFocused && lastFocused.focus();
+        }
+
+        addBtn && addBtn.addEventListener("click", openModal);
+        cancelBtn && cancelBtn.addEventListener("click", closeModal);
+
+        // Close modal when clicking overlay (outside modal-content)
+        modal &&
+          modal.addEventListener("click", function (e) {
+            if (e.target === modal) closeModal();
+          });
+
+        // Dynamic type-specific fields
+        const userTypeSelect = form && form.querySelector('[name="userType"]');
+        const typeFieldsContainer = document.getElementById("type-fields");
+
+        function renderTypeFields(type) {
+          if (!typeFieldsContainer) return;
+          let html = "";
+          if (type === "Farmer") {
+            html = `
+             
+              <label>NIC<input type="text" name="nic" /></label>
+              <label>Full Name<input type="text" name="fullName" /></label>
+              <label>Address<input type="text" name="address" /></label>
+              <label>District<input type="text" name="district" /></label>
+              <label>Contact Number<input type="text" name="contactNumber" /></label>
+              <label>Total Area Of Paddy Land<input type="text" name="totalAreaOfPaddyLand" /></label>
+            `;
+          } else if (type === "Collecter") {
+            html = `
+              <label>NIC<input type="text" name="nic" required /></label>
+              <label>Name<input type="text" name="fullName" /></label>
+              <label>Address<input type="text" name="address" /></label>
+              <label>District<input type="text" name="district" /></label>
+              <label>Contact Number<input type="text" name="contactNumber" /></label>
+            `;
+          } else if (type === "Miller") {
+            html = `
+              <label>Company Register Number<input type="text" name="companyRegisterNumber" required /></label>
+              <label>Company Name<input type="text" name="companyName" /></label>
+              <label>Address<input type="text" name="address" /></label>
+              <label>District<input type="text" name="district" /></label>
+              <label>Contact Number<input type="text" name="contactNumber" /></label>
+            `;
+          } else if (type === "PMB") {
+            html = `
+              <label>Full Name<input type="text" name="fullName" required /></label>
+              <label>Address<input type="text" name="address" /></label>
+              <label>District<input type="text" name="district" /></label>
+              <label>Contact Number<input type="text" name="contactNumber" /></label>
+            `;
+          }
+          typeFieldsContainer.innerHTML = html;
+          // Show or hide paddy stock section: farmers and PMB should not have initial stock input
+          const paddySection = document.getElementById("paddy-section");
+          if (paddySection) {
+            if (type === "Farmer" || type === "PMB") {
+              paddySection.style.display = "none";
+              // clear any existing paddy rows
+              const list = document.getElementById("paddy-list");
+              if (list) list.innerHTML = "";
+            } else {
+              paddySection.style.display = "";
+            }
+          }
+        }
+
+        userTypeSelect &&
+          userTypeSelect.addEventListener("change", function (e) {
+            const type = e.target.value;
+            renderTypeFields(type);
+          });
+        // initialize
+        const initialType = userTypeSelect ? userTypeSelect.value : "Farmer";
+        renderTypeFields(initialType);
+
+        // wire Add Paddy button
+        const addPaddyBtn = document.getElementById("add-paddy-btn");
+        if (addPaddyBtn) {
+          addPaddyBtn.addEventListener("click", async function () {
+            try {
+              if (!__paddyTypes || !__paddyTypes.length) {
+                __paddyTypes = await fetchPaddyTypes();
+              }
+              const list = document.getElementById("paddy-list");
+              if (list) {
+                const row = createPaddyRow(__paddyTypes);
+                list.appendChild(row);
+              }
+            } catch (e) {
+              console.error("Could not add paddy row", e);
+            }
+          });
+        }
+
+        form &&
+          form.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const data = new FormData(form);
+            const userType = data.get("userType");
+
+            // gather type-specific ids/names/addresses when present
+            const nic = data.get("nic") ? data.get("nic").trim() : "";
+            const companyRegisterNumber = data.get("companyRegisterNumber")
+              ? data.get("companyRegisterNumber").trim()
+              : "";
+            const fullName = data.get("fullName")
+              ? data.get("fullName").trim()
+              : "";
+            const companyName = data.get("companyName")
+              ? data.get("companyName").trim()
+              : "";
+            const address = data.get("address")
+              ? data.get("address").trim()
+              : "";
+            const contactNumber = data.get("contactNumber")
+              ? data.get("contactNumber").trim()
+              : "";
+            const totalAreaOfPaddyLand = data.get("totalAreaOfPaddyLand")
+              ? data.get("totalAreaOfPaddyLand").trim()
+              : "";
+
+            // determine display values (no generic fields)
+            let displayId = nic || companyRegisterNumber;
+            let displayName = fullName || companyName;
+            const displayLocation = address;
+
+            // For PMB, the backend uses a fixed id ('PMB') so only a name is required
+            if (
+              userType &&
+              userType.toString().trim().toLowerCase() === "pmb"
+            ) {
+              displayId = "PMB";
+              displayName = fullName || "";
+              if (!displayName) {
+                alert("Name is required for PMB");
+                return;
+              }
+            } else {
+              if (!displayId || !displayName) {
+                alert("ID and Name are required for the selected user type");
+                return;
+              }
+            }
+
+            // build payload expected by server
+            const payload = {
+              userType,
+              nic,
+              companyRegisterNumber,
+              fullName,
+              companyName,
+              address,
+              district: data.get("district") || "",
+              contactNumber,
+              totalAreaOfPaddyLand,
+            };
+
+            // collect paddy stock rows if any
+            try {
+              const pList = [];
+              const container = document.getElementById("paddy-list");
+              if (container) {
+                const rows = container.querySelectorAll(".paddy-row");
+                rows.forEach((r) => {
+                  const sel = r.querySelector('select[name="paddyType"]');
+                  const q = r.querySelector('input[name="paddyQty"]');
+                  const pval = sel ? sel.value : "";
+                  const qtyval = q ? q.value : "";
+                  if (pval && qtyval) {
+                    pList.push({ paddyType: pval, quantity: qtyval });
+                  }
+                });
+              }
+              if (pList.length) payload.stock = pList;
+            } catch (err) {
+              // ignore
+            }
+
+            try {
+              const res = await fetch("/api/users", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+              });
+              if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || res.statusText);
+              }
+              const saved = await res.json();
+
+              // if server returned null/empty, fall back to locally computed values
+              let displayId2, displayName2, displayLocation2, savedUserType;
+              if (!saved || typeof saved !== "object") {
+                // use payload/local values as fallback
+                displayId2 =
+                  payload.user_code || nic || companyRegisterNumber || "";
+                displayName2 = fullName || companyName || "";
+                displayLocation2 = address || "";
+                savedUserType = userType;
+              } else {
+                displayId2 =
+                  saved.user_code ||
+                  saved.nic ||
+                  saved.company_register_number ||
+                  "";
+                displayName2 = saved.full_name || saved.company_name || "";
+                displayLocation2 = saved.address || "";
+                savedUserType = saved.user_type || userType;
+              }
+
+              const tr = document.createElement("tr");
+              tr.innerHTML = `<td>${escapeHtml(
+                displayId2
+              )}</td><td>${escapeHtml(displayName2)}</td><td>${escapeHtml(
+                savedUserType
+              )}</td><td>${escapeHtml(displayLocation2)}</td>`;
+              tbody.appendChild(tr);
+              closeModal();
+              // clear paddy rows after successful save
+              const pListEl = document.getElementById("paddy-list");
+              if (pListEl) pListEl.innerHTML = "";
+            } catch (err) {
+              console.error("Failed to save user", err);
+              alert("Failed to save user: " + (err.message || err));
+            }
+          });
+
+        // load users initially
+        loadUsers();
+
+        // load dashboard stats
+        async function loadStats() {
+          try {
+            const res = await fetch("/api/stats");
+            if (!res.ok) return;
+            const d = await res.json();
+            const f = document.getElementById("total-farmers");
+            const c = document.getElementById("total-collectors");
+            const m = document.getElementById("total-millers");
+            if (f) f.textContent = d.farmers != null ? d.farmers : "-";
+            if (c) c.textContent = d.collectors != null ? d.collectors : "-";
+            if (m) m.textContent = d.millers != null ? d.millers : "-";
+          } catch (e) {
+            console.error("Failed to load stats", e);
+          }
+        }
+
+        // refresh stats when dashboard tab is activated
+        const dashboardTabAnchor = document.getElementById("tab-dashboard");
+        if (dashboardTabAnchor) {
+          dashboardTabAnchor.addEventListener("click", function () {
+            // small timeout to ensure panel becomes visible
+            setTimeout(loadStats, 100);
+          });
+        }
+
+        // initial stats load
+        loadStats();
+
+        // populate paddy type select used by chart
+        async function populatePaddySelect() {
+          try {
+            const sel = document.getElementById("paddy-type-select");
+            if (!sel) return;
+            const types = await fetchPaddyTypes();
+            // clear existing options (except the default)
+            sel.innerHTML = '<option value="">All paddy types</option>';
+            types.forEach((t) => {
+              const o = document.createElement("option");
+              o.value = t.name || t.id || "";
+              o.textContent = t.name || String(t.id || "");
+              sel.appendChild(o);
+            });
+            sel.addEventListener("change", function () {
+              // reload chart for selected paddy type
+              loadPaddyChart();
+            });
+          } catch (e) {
+            console.error("Failed to populate paddy select", e);
+          }
+        }
+
+        // initial populate
+        populatePaddySelect();
+
+        // Load and render paddy chart
+        async function ensureChartJs() {
+          if (window.Chart) return Promise.resolve();
+          return new Promise((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = "https://cdn.jsdelivr.net/npm/chart.js";
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error("Failed to load Chart.js"));
+            document.head.appendChild(s);
+          });
+        }
+
+        let paddyChart = null;
+        async function loadPaddyChart() {
+          try {
+            const sel = document.getElementById("paddy-type-select");
+            const ptype = sel ? sel.value : "";
+            let url = "/api/stock_history";
+            if (ptype) url += "?paddy_type=" + encodeURIComponent(ptype);
+            const res = await fetch(url);
+            if (!res.ok) return;
+            const d = await res.json();
+            const dates = d.dates || [];
+            const pmbData = d.pmb || [];
+            const colData = d.collecter || [];
+            const milData = d.miller || [];
+            await ensureChartJs();
+            const ctx = document.getElementById("paddy-chart").getContext("2d");
+            if (paddyChart) {
+              paddyChart.data.labels = dates;
+              paddyChart.data.datasets[0].data = pmbData;
+              paddyChart.data.datasets[1].data = colData;
+              paddyChart.data.datasets[2].data = milData;
+              paddyChart.update();
+              return;
+            }
+            paddyChart = new Chart(ctx, {
+              type: "line",
+              data: {
+                labels: dates,
+                datasets: [
+                  {
+                    label: "PMB (kg)",
+                    data: pmbData,
+                    borderColor: "rgba(11,61,145,0.9)",
+                    backgroundColor: "rgba(11,61,145,0.08)",
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 3,
+                  },
+                  {
+                    label: "Collectors (kg)",
+                    data: colData,
+                    borderColor: "rgba(11,132,255,0.9)",
+                    backgroundColor: "rgba(11,132,255,0.08)",
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 3,
+                  },
+                  {
+                    label: "Millers (kg)",
+                    data: milData,
+                    borderColor: "rgba(245,158,11,0.9)",
+                    backgroundColor: "rgba(245,158,11,0.08)",
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 3,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                  x: {
+                    title: { display: true, text: "Date" },
+                  },
+                  y: {
+                    beginAtZero: true,
+                    title: { display: true, text: "Stock (kg)" },
+                  },
+                },
+                plugins: {
+                  legend: { display: true, position: "bottom" },
+                },
+              },
+            });
+          } catch (e) {
+            console.error("Failed to load paddy chart", e);
+          }
+        }
+
+        // refresh chart when dashboard tab activated
+        if (dashboardTabAnchor) {
+          dashboardTabAnchor.addEventListener("click", function () {
+            setTimeout(loadPaddyChart, 120);
+          });
+        }
+
+        // initial chart load
+        loadPaddyChart();
+
+        function escapeHtml(s) {
+          return String(s).replace(/[&<>\"]/g, function (m) {
+            return {
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+            }[m];
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

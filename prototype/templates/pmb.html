@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Government Dashboard - PMB</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1 class="site-title">Government Dashboard (PMB)</h1>
+      <nav class="tabs" aria-label="Government tabs">
+        <ul>
+          <li class="tab active"><a href="#" data-index="0">Overview</a></li>
+          <li class="tab"><a href="#" data-index="1">Reports</a></li>
+          <li class="tab"><a href="#" data-index="2">Settings</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main class="content">
+      <section class="panel" id="purchase-panel">
+        <h2>Record Purchase (PMB)</h2>
+
+        <div class="card">
+          <form id="purchaseForm">
+            <label for="purchaseFromType">Purchase From</label>
+            <select id="purchaseFromType" required>
+              <option value="Farmer">Farmer</option>
+              <option value="Collecter">Collecter</option>
+            
+            </select>
+
+            <label for="sourceSelect">Source</label>
+            <select id="sourceSelect" required>
+              <option value="">Loading...</option>
+            </select>
+
+            <label for="paddyType">Paddy Type</label>
+            <select id="paddyType" required>
+              <option value="">Loading paddy types...</option>
+            </select>
+
+            <label for="qty">Quantity (kg)</label>
+            <input id="qty" type="number" min="0" step="0.01" required />
+
+            <div class="modal-actions">
+              <button type="submit" class="btn primary">Save Purchase</button>
+              <a href="/" class="btn">Back to home</a>
+            </div>
+          </form>
+        </div>
+
+        <h3 style="margin-top: 18px">Recent Purchases</h3>
+        <div class="table-wrap">
+          <table class="data-table" id="purchasesTable">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>From (type)</th>
+                <th>Source</th>
+                <th>Paddy Type</th>
+                <th>Qty (kg)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      // PMB purchase form - fetches sources and paddy types and posts transactions
+      function qs(s) {
+        return document.querySelector(s);
+      }
+
+      async function fetchCurrentUser() {
+        try {
+          const res = await fetch("/api/me");
+          if (!res.ok) return null;
+          const j = await res.json();
+          return j && j.ok ? j : null;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      async function fetchUsersByType(type) {
+        try {
+          const q = encodeURIComponent(type || "");
+          const res = await fetch(`/api/users/by_type?type=${q}`);
+          if (!res.ok) return [];
+          const d = await res.json();
+          return Array.isArray(d) ? d : [];
+        } catch (e) {
+          console.error(e);
+          return [];
+        }
+      }
+
+      async function fetchPaddyTypes() {
+        try {
+          const res = await fetch("/api/paddy_types");
+          if (!res.ok) return [];
+          const d = await res.json();
+          return Array.isArray(d) ? d : [];
+        } catch (e) {
+          console.error(e);
+          return [];
+        }
+      }
+
+      function userLabel(u) {
+        return (u.full_name || "") + " (" + (u.user_code || u.id || "") + ")";
+      }
+
+      async function loadRecent(to) {
+        try {
+          const url = to
+            ? `/api/transactions?to=${encodeURIComponent(to)}`
+            : "/api/transactions";
+          const res = await fetch(url);
+          if (!res.ok) return [];
+          const rows = await res.json();
+          return Array.isArray(rows) ? rows : [];
+        } catch (e) {
+          console.error(e);
+          return [];
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        const me = await fetchCurrentUser();
+        if (!me) {
+          window.location = "/";
+          return;
+        }
+        const currentUser = me;
+
+        const fromSel = qs("#purchaseFromType");
+        const sourceSel = qs("#sourceSelect");
+        const pSel = qs("#paddyType");
+
+        async function populateSource(fromType) {
+          sourceSel.innerHTML = "";
+          const list = await fetchUsersByType(fromType);
+          if (!list.length) {
+            const opt = document.createElement("option");
+            opt.value = "";
+            opt.textContent = "No " + fromType + "s found";
+            sourceSel.appendChild(opt);
+            return;
+          }
+          const ph = document.createElement("option");
+          ph.value = "";
+          ph.textContent = "Select " + fromType;
+          sourceSel.appendChild(ph);
+          list.forEach((u) => {
+            const o = document.createElement("option");
+            o.value = u.id || u.user_code || "";
+            o.textContent = userLabel(u);
+            o.dataset.full = u.full_name || "";
+            sourceSel.appendChild(o);
+          });
+        }
+
+        // populate paddy types
+        const types = await fetchPaddyTypes();
+        pSel.innerHTML = "";
+        const ph = document.createElement("option");
+        ph.value = "";
+        ph.textContent = "Select paddy type";
+        pSel.appendChild(ph);
+        types.forEach((t) => {
+          const o = document.createElement("option");
+          o.value = t.name || t.id || "";
+          o.textContent = t.name || String(t.id || "");
+          pSel.appendChild(o);
+        });
+
+        await populateSource(fromSel.value);
+
+        fromSel.addEventListener("change", (e) =>
+          populateSource(e.target.value)
+        );
+
+        // load recent purchases for this user
+        let purchases = await loadRecent(currentUser.user_id);
+        function render() {
+          const tbody = qs("#purchasesTable tbody");
+          tbody.innerHTML = "";
+          purchases
+            .slice()
+            .reverse()
+            .forEach((r) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `<td>${new Date(
+                r.datetime || r.created_at
+              ).toLocaleString()}</td><td></td><td>${String(r.from)}</td><td>${
+                r.type || ""
+              }</td><td>${r.quantity || 0}</td>`;
+              tbody.appendChild(tr);
+            });
+        }
+        render();
+
+        qs("#purchaseForm").addEventListener("submit", async (ev) => {
+          ev.preventDefault();
+          const fromType = fromSel.value;
+          const fromId = sourceSel.value;
+          const ptype = pSel.value;
+          const qty = qs("#qty").value;
+          if (!fromId || !ptype || !qty) {
+            alert("Please fill all fields");
+            return;
+          }
+          try {
+            const payload = {
+              from: fromId,
+              to: currentUser.user_id,
+              type: ptype,
+              quantity: Number(qty),
+              datetime: new Date().toISOString(),
+            };
+            const resp = await fetch("/api/transactions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const j = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+              alert("Failed: " + (j.error || resp.statusText));
+              return;
+            }
+            // refresh list
+            purchases = await loadRecent(currentUser.user_id);
+            render();
+            qs("#purchaseForm").reset();
+            await populateSource(fromType);
+          } catch (err) {
+            console.error(err);
+            alert("Error saving transaction");
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
