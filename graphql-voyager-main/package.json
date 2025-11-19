@@ -1,0 +1,89 @@
+{
+  "name": "graphql-voyager",
+  "version": "2.1.0",
+  "description": "GraphQL introspection viewer",
+  "author": "IvanGoncharov <ivan.goncharov.ua@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/graphql-kit/graphql-voyager#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/graphql-kit/graphql-voyager.git"
+  },
+  "funding": "https://github.com/graphql-kit/graphql-voyager?sponsor=1",
+  "bugs": {
+    "url": "https://github.com/graphql-kit/graphql-voyager/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "main": "dist/voyager.lib.js",
+  "types": "typings/index.d.ts",
+  "scripts": {
+    "preversion": "npm ci --ignore-scripts && npm test",
+    "changelog": "ts-node scripts/gen-changelog.ts",
+    "test": "npm run lint && npm run check && npm run testonly && npm run prettier:check && npm run check:spell",
+    "start": "npm run build:worker && webpack serve --mode=development",
+    "serve": "ts-node ./scripts/serve-directory.ts -p 9090 demo-dist",
+    "bundle": "rm -rf dist && webpack --mode=production",
+    "compile:middleware": "tsc -d src/middleware/index.ts --outDir middleware --lib ES6,DOM,esnext.asynciterable",
+    "build:worker": "rm -rf worker-dist && docker compose up --abort-on-container-exit --build build-worker",
+    "build:release": "rm -rf middleware && npm run build:worker && npm run bundle && npm run compile:middleware && npm run declarations",
+    "build:demo": "npm run build:release && rm -rf demo-dist && cp -R demo/ demo-dist/ && cp dist/voyager.css* dist/voyager.standalone.js* demo-dist/",
+    "stats": "NODE_ENV=production webpack --json --mode=production > stats.json",
+    "lint": "eslint --cache --max-warnings 0 .",
+    "check": "tsc",
+    "prettier": "prettier --write --list-different . **/*.svg",
+    "prettier:check": "prettier --check . **/*.svg",
+    "check:spell": "cspell --cache --no-progress '**/*'",
+    "testonly": "npm run build:demo && npm pack && docker compose up --abort-on-container-exit --build test",
+    "declarations": "tsc --emitDeclarationOnly -p tsconfig.lib.json",
+    "update-snapshots": "npm run build:demo && npm pack && docker compose up --build update-snapshots"
+  },
+  "peerDependencies": {
+    "graphql": ">=16.5.0",
+    "react": ">=18.0.0"
+  },
+  "dependencies": {
+    "@emotion/react": "11.13.3",
+    "@emotion/styled": "11.13.0",
+    "@mui/icons-material": "6.1.2",
+    "@mui/lab": "5.0.0-alpha.169",
+    "@mui/material": "6.1.2",
+    "commonmark": "0.31.2",
+    "svg-pan-zoom": "3.6.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.47.2",
+    "@svgr/webpack": "8.1.0",
+    "@types/commonmark": "0.27.9",
+    "@types/node": "22.7.4",
+    "@types/react": "18.3.11",
+    "@types/react-dom": "18.3.0",
+    "@typescript-eslint/eslint-plugin": "8.8.0",
+    "@typescript-eslint/parser": "8.8.0",
+    "cspell": "8.14.4",
+    "css-loader": "7.1.2",
+    "eslint": "8.57.1",
+    "eslint-plugin-import": "2.31.0",
+    "eslint-plugin-playwright": "1.6.2",
+    "eslint-plugin-react": "7.37.1",
+    "eslint-plugin-react-hooks": "4.6.2",
+    "eslint-plugin-simple-import-sort": "12.1.1",
+    "graphql": "16.9.0",
+    "mini-css-extract-plugin": "2.9.1",
+    "postcss-cssnext": "3.1.1",
+    "postcss-import": "16.1.0",
+    "postcss-loader": "8.1.1",
+    "postcss-variables-loader": "6.0.0",
+    "prettier": "3.3.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "style-loader": "4.0.0",
+    "ts-loader": "9.5.1",
+    "ts-node": "10.9.2",
+    "typescript": "5.5.4",
+    "webpack": "5.95.0",
+    "webpack-cli": "5.1.4",
+    "webpack-dev-server": "5.1.0"
+  }
+}

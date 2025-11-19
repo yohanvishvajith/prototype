@@ -1,0 +1,35 @@
+name: Deploy to DigitalOcean Droplet
+
+on:
+  push:
+    branches: ["main"]   # or master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Copy files to Droplet
+      uses: appleboy/scp-action@v0.1.5
+      with:
+        host: ${{ secrets.DO_HOST }}
+        username: ${{ secrets.DO_USER }}
+        key: ${{ secrets.DO_KEY }}
+        source: "."
+        target: "/var/www/flaskapp"  # change to your app folder
+
+    - name: SSH and restart services
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.DO_HOST }}
+        username: ${{ secrets.DO_USER }}
+        key: ${{ secrets.DO_KEY }}
+        script: |
+          cd /var/www/flaskapp
+          source venv/bin/activate
+          pip install -r requirements.txt
+          systemctl restart flaskapp
+          systemctl restart nginx
