@@ -19,7 +19,7 @@ jobs:
         username: ${{ secrets.DO_USER }}
         key: ${{ secrets.DO_KEY }}
         source: "."
-        target: "/var/www/flaskapp"  # change to your app folder
+        target: "/var/www"  # change to your app folder
 
     - name: SSH and restart services
       uses: appleboy/ssh-action@v1.0.0
