@@ -23,7 +23,6 @@ python -m venv .venv
 .venv\\Scripts\\activate
 pip install -r requirements.txt
 pip install web3
-
 .env copy rename to .env
 python app.py
 
