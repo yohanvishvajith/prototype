@@ -28,7 +28,7 @@ jobs:
         username: ${{ secrets.DO_USER }}
         key: ${{ secrets.DO_KEY }}
         script: |
-          cd /var/www/flaskapp
+          cd /var/www/flask_app
           source venv/bin/activate
           pip install -r requirements.txt
           systemctl restart flaskapp
