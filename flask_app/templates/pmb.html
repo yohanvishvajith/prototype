@@ -15,8 +15,9 @@
       <nav class="tabs" aria-label="Government tabs">
         <ul>
           <li class="tab active"><a href="#" data-index="0">Overview</a></li>
-          <li class="tab"><a href="#" data-index="1">Reports</a></li>
-          <li class="tab"><a href="#" data-index="2">Settings</a></li>
+          <li class="tab"><a href="#" data-index="1">Damage</a></li>
+          <li class="tab"><a href="#" data-index="2">Reports</a></li>
+          <li class="tab"><a href="#" data-index="3">Settings</a></li>
         </ul>
       </nav>
     </header>
@@ -31,7 +32,6 @@
             <select id="purchaseFromType" required>
               <option value="Farmer">Farmer</option>
               <option value="Collecter">Collecter</option>
-            
             </select>
 
             <label for="sourceSelect">Source</label>
@@ -69,6 +69,59 @@
             <tbody></tbody>
           </table>
         </div>
+      </section>
+
+      <section class="panel" id="damage-panel" hidden>
+        <h2>Record Damage (PMB)</h2>
+
+        <div class="card">
+          <form id="damageForm">
+            <label for="damagePaddyType">Paddy Type</label>
+            <select id="damagePaddyType" required>
+              <option value="">Select paddy type</option>
+            </select>
+
+            <label for="damageQty">Damaged Quantity (kg)</label>
+            <input id="damageQty" type="number" min="0" step="0.01" required />
+
+            <label for="damageReason">Reason</label>
+            <textarea
+              id="damageReason"
+              rows="3"
+              placeholder="Describe the reason for damage"
+              required
+            ></textarea>
+
+            <div class="modal-actions">
+              <button type="submit" class="btn primary">Record Damage</button>
+            </div>
+          </form>
+        </div>
+
+        <h3 style="margin-top: 18px">Recent Damages</h3>
+        <div class="table-wrap">
+          <table class="data-table" id="damagesTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Paddy Type</th>
+                <th>Qty (kg)</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="reports-panel" hidden>
+        <h2>Reports</h2>
+        <p>Report views will appear here.</p>
+      </section>
+
+      <section class="panel" id="settings-panel" hidden>
+        <h2>Settings</h2>
+        <p>Settings will appear here.</p>
       </section>
     </main>
 
@@ -145,6 +198,25 @@
         const sourceSel = qs("#sourceSelect");
         const pSel = qs("#paddyType");
 
+        function setupTabs() {
+          const tabs = Array.from(document.querySelectorAll(".tabs .tab"));
+          const panels = [
+            qs("#purchase-panel"),
+            qs("#damage-panel"),
+            qs("#reports-panel"),
+            qs("#settings-panel"),
+          ];
+          tabs.forEach((tab, i) => {
+            tab.addEventListener("click", (ev) => {
+              ev.preventDefault();
+              tabs.forEach((t) => t.classList.remove("active"));
+              tab.classList.add("active");
+              panels.forEach((p) => (p.hidden = true));
+              if (panels[i]) panels[i].hidden = false;
+            });
+          });
+        }
+
         async function populateSource(fromType) {
           sourceSel.innerHTML = "";
           const list = await fetchUsersByType(fromType);
@@ -183,6 +255,22 @@
         });
 
         await populateSource(fromSel.value);
+
+        // populate damage paddy select
+        const damageSel = qs("#damagePaddyType");
+        damageSel.innerHTML = "";
+        const dph = document.createElement("option");
+        dph.value = "";
+        dph.textContent = "Select paddy type";
+        damageSel.appendChild(dph);
+        types.forEach((t) => {
+          const o = document.createElement("option");
+          o.value = t.name || t.id || "";
+          o.textContent = t.name || String(t.id || "");
+          damageSel.appendChild(o);
+        });
+
+        setupTabs();
 
         fromSel.addEventListener("change", (e) =>
           populateSource(e.target.value)
@@ -246,7 +334,74 @@
             alert("Error saving transaction");
           }
         });
+
+        // Damage form handling
+        qs("#damageForm").addEventListener("submit", async (ev) => {
+          ev.preventDefault();
+          const paddyType = qs("#damagePaddyType").value;
+          const qty = qs("#damageQty").value;
+          const reason = qs("#damageReason").value;
+          if (!paddyType || !qty || !reason) {
+            alert("Please fill all fields");
+            return;
+          }
+          try {
+            const payload = {
+              user_id: currentUser ? currentUser.user_id : null,
+              paddy_type: paddyType,
+              quantity: qty,
+              reason: reason,
+              damage_date: new Date().toISOString(),
+            };
+            const resp = await fetch("/api/damages", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const j = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+              alert("Failed to record damage: " + (j.error || resp.statusText));
+              return;
+            }
+            // refresh damages list
+            await renderDamageTable();
+            qs("#damageForm").reset();
+            alert("Damage recorded successfully");
+          } catch (err) {
+            console.error(err);
+            alert("Error recording damage");
+          }
+        });
+
+        // initial render of damage table
+        renderDamageTable();
       });
+
+      async function renderDamageTable() {
+        const dBody = qs("#damagesTable tbody");
+        dBody.innerHTML = "";
+        try {
+          const userId = (await fetchCurrentUser())?.user_id || null;
+          const url = userId
+            ? `/api/damages?user_id=${encodeURIComponent(userId)}`
+            : "/api/damages";
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Failed to load damages");
+          const damages = await res.json();
+          damages.forEach((d) => {
+            const tr = document.createElement("tr");
+            const displayDate = d.damage_date || d.created_at;
+            tr.innerHTML = `<td>${new Date(
+              displayDate
+            ).toLocaleString()}</td><td>${d.paddy_type}</td><td>${
+              d.quantity
+            }</td><td>${d.reason}</td>`;
+            dBody.appendChild(tr);
+          });
+        } catch (e) {
+          console.error("Could not load damages:", e);
+        }
+      }
     </script>
   </body>
 </html>

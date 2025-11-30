@@ -117,9 +117,6 @@
             <canvas id="paddy-chart" aria-label="Paddy stock by role"></canvas>
           </div>
         </div>
-        <p style="margin-top: 10px">
-          Welcome to the dashboard. Select a tab to view content.
-        </p>
       </section>
 
       <section
@@ -130,78 +127,73 @@
       >
         <h2>Manage User</h2>
 
+        <div class="controls" style="margin-bottom: 12px">
+          <button id="add-user-btn" class="btn">Add User</button>
+        </div>
+
+        <div
+          class="controls"
+          style="
+            margin-bottom: 12px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+          "
+        >
+          <label style="display: flex; flex-direction: column; font-size: 13px">
+            User Type
+            <select id="manage-user-type-filter">
+              <option value="Farmer">Farmer</option>
+              <option value="Collecter">Collecter</option>
+              <option value="Miller">Miller</option>
+              <option value="PMB">PMB</option>
+            </select>
+          </label>
+          <label
+            style="
+              display: flex;
+              flex-direction: column;
+              flex: 1;
+              font-size: 13px;
+            "
+          >
+            Search (ID / Name)
+            <input
+              id="manage-user-search"
+              type="search"
+              placeholder="Enter user ID or name"
+              style="
+                padding: 6px;
+                border-radius: 6px;
+                border: 1px solid #d1d5db;
+              "
+            />
+          </label>
+          <button id="manage-user-refresh" class="btn">Refresh</button>
+        </div>
+
         <div class="table-wrap">
           <table
-            id="user-table"
+            id="manage-user-table"
             class="data-table"
-            aria-describedby="user-table-desc"
+            aria-describedby="manage-user-table-desc"
           >
-            <caption id="user-table-desc">
-              List of users
+            <caption id="manage-user-table-desc">
+              All Users
             </caption>
             <thead>
               <tr>
                 <th scope="col">User ID</th>
-                <th scope="col">Name</th>
-                <th scope="col">User Type</th>
-                <th scope="col">Location</th>
+                <th scope="col">Full Name</th>
+                <th scope="col">District</th>
+                <th scope="col">Contact</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
               <!-- rows will be added here -->
             </tbody>
           </table>
-        </div>
-
-        <div class="controls">
-          <button id="add-user-btn" class="btn">Add User</button>
-        </div>
-
-        <!-- Add User Modal -->
-        <div
-          id="user-modal"
-          class="modal"
-          role="dialog"
-          aria-modal="true"
-          aria-hidden="true"
-          hidden
-        >
-          <div class="modal-content" role="document">
-            <header class="modal-header">
-              <h3>Add User</h3>
-            </header>
-            <form id="user-form">
-              <label>
-                User Type
-                <select name="userType">
-                  <option selected>Farmer</option>
-                  <option>Collecter</option>
-                  <option>Miller</option>
-                  <option>PMB</option>
-                </select>
-              </label>
-              <div id="type-fields">
-                <!-- fields rendered by JS -->
-              </div>
-
-              <div id="paddy-section">
-                <label>Paddy stock</label>
-                <div class="paddy-controls">
-                  <button type="button" id="add-paddy-btn" class="btn">
-                    Add Paddy
-                  </button>
-                </div>
-                <div id="paddy-list"></div>
-              </div>
-
-              <div class="modal-actions">
-                <button type="button" id="cancel-btn" class="btn">
-                  Cancel
-                </button>
-                <button type="submit" class="btn primary">Save</button>
-              </div>
-            </form>
-          </div>
         </div>
       </section>
 
@@ -212,8 +204,262 @@
         hidden
       >
         <h2>Analytics</h2>
-        <p>Placeholder analytics content.</p>
+        <div style="margin-top: 12px">
+          <label
+            for="analytics-paddy-type-select"
+            style="
+              display: block;
+              margin-bottom: 6px;
+              font-size: 13px;
+              color: #374151;
+            "
+            >Paddy Type (Analytics)</label
+          >
+          <select
+            id="analytics-paddy-type-select"
+            style="
+              padding: 6px;
+              border-radius: 6px;
+              border: 1px solid #d1d5db;
+              min-width: 220px;
+              margin-bottom: 8px;
+            "
+          >
+            <option value="">All paddy types</option>
+          </select>
+          <div
+            style="
+              height: 260px;
+              max-width: 900px;
+              margin-top: 8px;
+              position: relative;
+            "
+          >
+            <canvas
+              id="paddy-chart-analytics"
+              aria-label="Paddy stock comparison chart"
+            ></canvas>
+          </div>
+        </div>
+
+        <div
+          style="
+            margin-top: 32px;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 24px;
+          "
+        >
+          <h3 style="font-size: 16px; margin-bottom: 12px; color: #374151">
+            District-based Stock Analysis
+          </h3>
+          <label
+            for="district-paddy-type-select"
+            style="
+              display: block;
+              margin-bottom: 6px;
+              font-size: 13px;
+              color: #374151;
+            "
+            >Filter by Paddy Type</label
+          >
+          <select
+            id="district-paddy-type-select"
+            style="
+              padding: 6px;
+              border-radius: 6px;
+              border: 1px solid #d1d5db;
+              min-width: 220px;
+              margin-bottom: 8px;
+            "
+          >
+            <option value="">All paddy types</option>
+          </select>
+          <div
+            style="
+              height: 320px;
+              max-width: 900px;
+              margin-top: 8px;
+              position: relative;
+            "
+          >
+            <canvas
+              id="district-chart-analytics"
+              aria-label="Stock by district - Millers and Collectors"
+            ></canvas>
+          </div>
+        </div>
+
+        <div
+          style="
+            margin-top: 32px;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 24px;
+          "
+        >
+          <h3 style="font-size: 16px; margin-bottom: 12px; color: #374151">
+            User Stock Analysis
+          </h3>
+          <div
+            class="controls"
+            style="
+              display: flex;
+              gap: 8px;
+              align-items: center;
+              margin-bottom: 12px;
+            "
+          >
+            <label
+              style="display: flex; flex-direction: column; font-size: 13px"
+            >
+              User Type
+              <select id="filter-user-type">
+                <option value="collect">Collectors</option>
+                <option value="miller">Millers</option>
+              </select>
+            </label>
+
+            <label
+              style="display: flex; flex-direction: column; font-size: 13px"
+            >
+              Paddy Type
+              <select id="filter-paddy-type"></select>
+            </label>
+
+            <label
+              style="display: flex; flex-direction: column; font-size: 13px"
+            >
+              District (Optional)
+              <select id="filter-district">
+                <option value="">All Districts</option>
+              </select>
+            </label>
+
+            <button id="filter-refresh" class="btn">Refresh</button>
+          </div>
+
+          <div class="table-wrap">
+            <table
+              id="user-table"
+              class="data-table"
+              aria-describedby="user-table-desc"
+            >
+              <caption id="user-table-desc">
+                User list
+              </caption>
+              <thead id="user-table-head">
+                <tr>
+                  <th scope="col">User ID</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">User Type</th>
+                  <th scope="col">District</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- rows will be added here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
+
+      <!-- Stock detail modal -->
+      <div
+        id="stock-modal"
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden="true"
+        hidden
+      >
+        <div class="modal-content" role="document">
+          <header class="modal-header">
+            <h3 id="stock-modal-title">User Stock Details</h3>
+          </header>
+          <div style="padding: 12px">
+            <table class="data-table" id="stock-detail-table">
+              <thead>
+                <tr>
+                  <th>Paddy Type</th>
+                  <th>Quantity (kg)</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div style="margin-top: 12px; text-align: right">
+              <button id="stock-close-btn" class="btn">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add User Modal -->
+      <div
+        id="user-modal"
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden="true"
+        hidden
+      >
+        <div class="modal-content" role="document">
+          <header class="modal-header">
+            <h3>Add User</h3>
+          </header>
+          <form id="user-form">
+            <label>
+              User Type
+              <select name="userType">
+                <option selected>Farmer</option>
+                <option>Collecter</option>
+                <option>Miller</option>
+                <option>PMB</option>
+              </select>
+            </label>
+            <div id="type-fields">
+              <!-- fields rendered by JS -->
+            </div>
+
+            <div id="paddy-section">
+              <label>Paddy stock</label>
+              <div class="paddy-controls">
+                <button type="button" id="add-paddy-btn" class="btn">
+                  Add Paddy
+                </button>
+              </div>
+              <div id="paddy-list"></div>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="cancel-btn" class="btn">Cancel</button>
+              <button type="submit" class="btn primary">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- User Detail Modal -->
+      <div
+        id="user-detail-modal"
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden="true"
+        hidden
+      >
+        <div class="modal-content" role="document">
+          <header class="modal-header">
+            <h3>User Details</h3>
+          </header>
+          <div style="padding: 16px">
+            <div id="user-detail-content" style="display: grid; gap: 12px">
+              <!-- User details will be populated here -->
+            </div>
+            <div style="margin-top: 16px; text-align: right">
+              <button id="user-detail-close-btn" class="btn">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
 
     <script>
@@ -237,6 +483,10 @@
               a.setAttribute("aria-selected", "false");
             }
           });
+          // Load manage users when that tab is activated (index 1)
+          if (index === 1) {
+            loadManageUsers();
+          }
         }
 
         tabAnchors.forEach((a, i) => {
@@ -253,26 +503,448 @@
         const cancelBtn = document.getElementById("cancel-btn");
         const form = document.getElementById("user-form");
         const tbody = document.querySelector("#user-table tbody");
+        const filterUserType = document.getElementById("filter-user-type");
+        const filterPaddyType = document.getElementById("filter-paddy-type");
+        const filterSearch = document.getElementById("filter-search");
+        const filterRefresh = document.getElementById("filter-refresh");
+        const stockModal = document.getElementById("stock-modal");
+        const stockCloseBtn = document.getElementById("stock-close-btn");
+        const stockDetailBody = document.querySelector(
+          "#stock-detail-table tbody"
+        );
         let lastFocused = null;
 
-        // load users from server and populate table
-        async function loadUsers() {
+        // Close stock modal
+        if (stockCloseBtn) {
+          stockCloseBtn.addEventListener("click", () => {
+            if (stockModal) {
+              stockModal.hidden = true;
+              stockModal.removeAttribute("aria-hidden");
+            }
+          });
+        }
+
+        // Close stock modal when clicking outside
+        if (stockModal) {
+          stockModal.addEventListener("click", function (e) {
+            if (e.target === stockModal) {
+              stockModal.hidden = true;
+              stockModal.removeAttribute("aria-hidden");
+            }
+          });
+        }
+
+        // Load users for Manage User section
+        async function loadManageUsers() {
+          const manageUserTableBody = document.querySelector(
+            "#manage-user-table tbody"
+          );
+          if (!manageUserTableBody) return;
+
+          const manageUserTypeFilter = document.getElementById(
+            "manage-user-type-filter"
+          );
+          const manageUserSearch =
+            document.getElementById("manage-user-search");
+          const selectedType = manageUserTypeFilter
+            ? manageUserTypeFilter.value
+            : "";
+          const searchQuery = manageUserSearch
+            ? manageUserSearch.value.trim().toLowerCase()
+            : "";
+
           try {
-            const res = await fetch("/api/users");
-            const rows = await res.json();
-            tbody.innerHTML = "";
+            const resp = await fetch("/api/users");
+            if (!resp.ok) throw new Error("Failed to fetch users");
+            const users = await resp.json();
+
+            manageUserTableBody.innerHTML = "";
+            users
+              .filter((u) => {
+                // Filter by user type
+                if (selectedType && u.user_type !== selectedType) return false;
+                // Filter by search query (ID or name)
+                if (searchQuery) {
+                  const matchId = (u.id || "")
+                    .toLowerCase()
+                    .includes(searchQuery);
+                  const matchName = (u.full_name || "")
+                    .toLowerCase()
+                    .includes(searchQuery);
+                  const matchCompany = (u.company_name || "")
+                    .toLowerCase()
+                    .includes(searchQuery);
+                  if (!matchId && !matchName && !matchCompany) return false;
+                }
+                return true;
+              })
+              .forEach((u) => {
+                const tr = document.createElement("tr");
+                // For millers, show company name instead of full name
+                const displayName =
+                  u.user_type === "Miller"
+                    ? u.company_name || ""
+                    : u.full_name || "";
+                tr.innerHTML = `
+                  <td>${escapeHtml(u.id || "")}</td>
+                  <td>${escapeHtml(displayName)}</td>
+                  <td>${escapeHtml(u.district || "")}</td>
+                  <td>${escapeHtml(u.contact_number || "")}</td>
+                  <td>
+                    <button class="btn view-user-btn" style="padding: 4px 8px; font-size: 12px; margin-right: 4px;" title="View Details">
+                      👁️ View
+                    </button>
+                    <button class="btn edit-user-btn" style="padding: 4px 8px; font-size: 12px; background-color: #f59e0b; color: white;" title="Edit User">
+                      ✏️ Edit
+                    </button>
+                  </td>
+                `;
+                tr.dataset.user = JSON.stringify(u);
+                tr.dataset.userId = u.id;
+
+                // Add click event listener to the view button
+                const viewBtn = tr.querySelector(".view-user-btn");
+                viewBtn.addEventListener("click", () => showUserDetail(u.id));
+
+                // Add click event listener to the edit button
+                const editBtn = tr.querySelector(".edit-user-btn");
+                editBtn.addEventListener("click", () => editUser(u));
+
+                manageUserTableBody.appendChild(tr);
+              });
+          } catch (err) {
+            console.error("Failed to load users", err);
+          }
+        }
+
+        // Show user detail modal
+        function showUserDetail(userId) {
+          const rows = document.querySelectorAll("#manage-user-table tbody tr");
+          let user = null;
+          rows.forEach((row) => {
+            const userData = row.dataset.user;
+            if (userData) {
+              const u = JSON.parse(userData);
+              if (u.id === userId) {
+                user = u;
+              }
+            }
+          });
+
+          if (!user) return;
+
+          const detailContent = document.getElementById("user-detail-content");
+          detailContent.innerHTML = `
+            <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px;">
+              <strong>User ID:</strong><span>${escapeHtml(user.id || "")}</span>
+              <strong>User Type:</strong><span>${escapeHtml(
+                user.user_type || ""
+              )}</span>
+              ${
+                user.user_type !== "Miller"
+                  ? `<strong>Full Name:</strong><span>${escapeHtml(
+                      user.full_name || ""
+                    )}</span>`
+                  : ""
+              }
+              ${
+                user.user_type === "Miller"
+                  ? `
+                <strong>Company Name:</strong><span>${escapeHtml(
+                  user.company_name || ""
+                )}</span>
+                <strong>Register Number:</strong><span>${escapeHtml(
+                  user.company_register_number || ""
+                )}</span>
+              `
+                  : ""
+              }
+              ${
+                user.user_type !== "Miller"
+                  ? `<strong>NIC:</strong><span>${escapeHtml(
+                      user.nic || ""
+                    )}</span>`
+                  : ""
+              }
+              <strong>Address:</strong><span>${escapeHtml(
+                user.address || ""
+              )}</span>
+              <strong>District:</strong><span>${escapeHtml(
+                user.district || ""
+              )}</span>
+              <strong>Contact Number:</strong><span>${escapeHtml(
+                user.contact_number || ""
+              )}</span>
+              ${
+                user.user_type === "Farmer"
+                  ? `
+                <strong>Paddy Land Area:</strong><span>${escapeHtml(
+                  user.total_area_of_paddy_land || ""
+                )}</span>
+              `
+                  : ""
+              }
+            </div>
+          `;
+
+          const userDetailModal = document.getElementById("user-detail-modal");
+          userDetailModal.hidden = false;
+          userDetailModal.setAttribute("aria-hidden", "false");
+        }
+
+        // Close user detail modal
+        const userDetailCloseBtn = document.getElementById(
+          "user-detail-close-btn"
+        );
+        if (userDetailCloseBtn) {
+          userDetailCloseBtn.addEventListener("click", () => {
+            const userDetailModal =
+              document.getElementById("user-detail-modal");
+            userDetailModal.hidden = true;
+            userDetailModal.removeAttribute("aria-hidden");
+          });
+        }
+
+        // Edit user function
+        let editingUserId = null;
+        function editUser(user) {
+          editingUserId = user.id;
+          const modal = document.getElementById("user-modal");
+          const form = document.getElementById("user-form");
+          const modalHeader = modal.querySelector(".modal-header h3");
+
+          // Change modal title
+          modalHeader.textContent = "Edit User";
+
+          // Set user type
+          const userTypeSelect = form.querySelector('[name="userType"]');
+          if (userTypeSelect) {
+            userTypeSelect.value = user.user_type;
+            userTypeSelect.disabled = true; // Can't change user type when editing
+            renderTypeFields(user.user_type);
+          }
+
+          // Populate form fields based on user type
+          setTimeout(() => {
+            if (user.user_type === "Farmer") {
+              form.querySelector('[name="nic"]').value = user.nic || "";
+              form.querySelector('[name="fullName"]').value =
+                user.full_name || "";
+              form.querySelector('[name="address"]').value = user.address || "";
+              form.querySelector('[name="district"]').value =
+                user.district || "";
+              form.querySelector('[name="contactNumber"]').value =
+                user.contact_number || "";
+              form.querySelector('[name="totalAreaOfPaddyLand"]').value =
+                user.total_area_of_paddy_land || "";
+            } else if (user.user_type === "Collecter") {
+              form.querySelector('[name="nic"]').value = user.nic || "";
+              form.querySelector('[name="fullName"]').value =
+                user.full_name || "";
+              form.querySelector('[name="address"]').value = user.address || "";
+              form.querySelector('[name="district"]').value =
+                user.district || "";
+              form.querySelector('[name="contactNumber"]').value =
+                user.contact_number || "";
+            } else if (user.user_type === "Miller") {
+              form.querySelector('[name="companyRegisterNumber"]').value =
+                user.company_register_number || "";
+              form.querySelector('[name="companyName"]').value =
+                user.company_name || "";
+              form.querySelector('[name="address"]').value = user.address || "";
+              form.querySelector('[name="district"]').value =
+                user.district || "";
+              form.querySelector('[name="contactNumber"]').value =
+                user.contact_number || "";
+            } else if (user.user_type === "PMB") {
+              form.querySelector('[name="fullName"]').value =
+                user.full_name || "";
+              form.querySelector('[name="address"]').value = user.address || "";
+              form.querySelector('[name="district"]').value =
+                user.district || "";
+              form.querySelector('[name="contactNumber"]').value =
+                user.contact_number || "";
+            }
+          }, 100);
+
+          // Hide paddy section for editing
+          const paddySection = document.getElementById("paddy-section");
+          if (paddySection) {
+            paddySection.style.display = "none";
+          }
+
+          // Show modal
+          modal.hidden = false;
+          modal.setAttribute("aria-hidden", "false");
+        }
+
+        // Add event listeners for manage user filters
+        const manageUserTypeFilter = document.getElementById(
+          "manage-user-type-filter"
+        );
+        const manageUserRefresh = document.getElementById(
+          "manage-user-refresh"
+        );
+        const manageUserSearch = document.getElementById("manage-user-search");
+        if (manageUserTypeFilter) {
+          manageUserTypeFilter.addEventListener("change", loadManageUsers);
+        }
+        if (manageUserSearch) {
+          manageUserSearch.addEventListener("input", loadManageUsers);
+        }
+        if (manageUserRefresh) {
+          manageUserRefresh.addEventListener("click", loadManageUsers);
+        }
+
+        // Populate filter paddy type dropdown for Analytics
+        async function populateFilterPaddyType() {
+          try {
+            if (!filterPaddyType) return;
+            const types = await fetchPaddyTypes();
+            filterPaddyType.innerHTML = "";
+            types.forEach((t) => {
+              const o = document.createElement("option");
+              o.value = t.name || t.id || "";
+              o.textContent = t.name || String(t.id || "");
+              filterPaddyType.appendChild(o);
+            });
+          } catch (e) {
+            console.error("Failed to populate filter paddy type", e);
+          }
+        }
+
+        // Populate filter district dropdown
+        function populateFilterDistrict() {
+          const filterDistrict = document.getElementById("filter-district");
+          if (!filterDistrict) return;
+
+          const districts = [
+            "Ampara",
+            "Anuradhapura",
+            "Badulla",
+            "Batticaloa",
+            "Colombo",
+            "Galle",
+            "Gampaha",
+            "Hambantota",
+            "Jaffna",
+            "Kalutara",
+            "Kandy",
+            "Kegalle",
+            "Kilinochchi",
+            "Kurunegala",
+            "Mannar",
+            "Matale",
+            "Matara",
+            "Monaragala",
+            "Mullaitivu",
+            "Nuwara Eliya",
+            "Polonnaruwa",
+            "Puttalam",
+            "Ratnapura",
+            "Trincomalee",
+            "Vavuniya",
+          ];
+
+          districts.forEach((d) => {
+            const o = document.createElement("option");
+            o.value = d;
+            o.textContent = d;
+            filterDistrict.appendChild(o);
+          });
+        }
+
+        // Initialize Analytics filters
+        populateFilterPaddyType();
+        populateFilterDistrict();
+
+        const filterDistrict = document.getElementById("filter-district");
+        if (filterUserType) {
+          filterUserType.addEventListener("change", loadStockUsers);
+        }
+        if (filterPaddyType) {
+          filterPaddyType.addEventListener("change", loadStockUsers);
+        }
+        if (filterDistrict) {
+          filterDistrict.addEventListener("change", loadStockUsers);
+        }
+        if (filterRefresh) {
+          filterRefresh.addEventListener("click", loadStockUsers);
+        }
+
+        // Load users - stock view only
+        async function loadStockUsers() {
+          try {
+            const userType = filterUserType ? filterUserType.value : "collect";
+            const ptype = filterPaddyType ? filterPaddyType.value : "";
+            const district = filterDistrict ? filterDistrict.value : "";
+
+            // Update table headers for stock view
+            const tableHead = document.getElementById("user-table-head");
+            tableHead.innerHTML = `<tr>
+              <th scope="col">ID</th>
+              <th scope="col">Name</th>
+              <th scope="col">Quantity (kg)</th>
+              <th scope="col">District</th>
+            </tr>`;
+
+            let url = `/api/stock_by_user?user_type=${encodeURIComponent(
+              userType
+            )}`;
+            if (ptype) url += `&paddy_type=${encodeURIComponent(ptype)}`;
+            if (district) url += `&district=${encodeURIComponent(district)}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Failed to load data");
+            let rows = await res.json();
+
+            // Sort by quantity in descending order
+            rows.sort((a, b) => (b.total || 0) - (a.total || 0));
+
+            // Get tbody from the user-table in analytics section
+            const userTableBody = document.querySelector("#user-table tbody");
+            if (!userTableBody) {
+              console.error("User table tbody not found");
+              return;
+            }
+
+            userTableBody.innerHTML = "";
             rows.forEach((r) => {
-              const displayId =
-                r.user_code || r.nic || r.company_register_number || "";
-              const displayName = r.full_name || r.company_name || "";
-              const displayLocation = r.address || "";
               const tr = document.createElement("tr");
-              tr.innerHTML = `<td>${escapeHtml(displayId)}</td><td>${escapeHtml(
-                displayName
-              )}</td><td>${escapeHtml(r.user_type)}</td><td>${escapeHtml(
-                displayLocation
-              )}</td>`;
-              tbody.appendChild(tr);
+              tr.dataset.userId = r.id || "";
+              tr.innerHTML = `<td>${escapeHtml(
+                r.id || ""
+              )}</td><td>${escapeHtml(r.full_name || "")}</td><td>${Number(
+                r.total || 0
+              ).toFixed(3)}</td><td>${escapeHtml(r.district || "")}</td>`;
+              tr.style.cursor = "pointer";
+              tr.addEventListener("click", async () => {
+                // load detail for this user
+                try {
+                  const uid = tr.dataset.userId;
+                  const resp = await fetch(
+                    `/api/stock_user_detail?user_id=${encodeURIComponent(uid)}`
+                  );
+                  if (!resp.ok) throw new Error("Failed to load details");
+                  const detail = await resp.json();
+                  stockDetailBody.innerHTML = "";
+                  detail.forEach((d) => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `<td>${escapeHtml(
+                      d.type || ""
+                    )}</td><td>${Number(d.amount || 0).toFixed(3)}</td>`;
+                    stockDetailBody.appendChild(row);
+                  });
+                  // set modal title
+                  const title = document.getElementById("stock-modal-title");
+                  title.textContent = `Stock details - ${r.full_name || r.id}`;
+                  stockModal.hidden = false;
+                  stockModal.setAttribute("aria-hidden", "false");
+                } catch (err) {
+                  console.error("Failed to load user stock detail", err);
+                  alert("Failed to load user stock details");
+                }
+              });
+              userTableBody.appendChild(tr);
             });
           } catch (err) {
             console.error("Failed loading users", err);
@@ -350,6 +1022,12 @@
           modal.hidden = true;
           modal.setAttribute("aria-hidden", "true");
           form.reset();
+          editingUserId = null;
+          const userTypeSelect =
+            form && form.querySelector('[name="userType"]');
+          if (userTypeSelect) userTypeSelect.disabled = false;
+          const modalHeader = modal && modal.querySelector(".modal-header h3");
+          if (modalHeader) modalHeader.textContent = "Add User";
           lastFocused && lastFocused.focus();
         }
 
@@ -369,13 +1047,43 @@
         function renderTypeFields(type) {
           if (!typeFieldsContainer) return;
           let html = "";
+
+          const districtOptions = `
+          
+            <option value="Ampara">Ampara</option>
+            <option value="Anuradhapura">Anuradhapura</option>
+            <option value="Badulla">Badulla</option>
+            <option value="Batticaloa">Batticaloa</option>
+            <option value="Colombo">Colombo</option>
+            <option value="Galle">Galle</option>
+            <option value="Gampaha">Gampaha</option>
+            <option value="Hambantota">Hambantota</option>
+            <option value="Jaffna">Jaffna</option>
+            <option value="Kalutara">Kalutara</option>
+            <option value="Kandy">Kandy</option>
+            <option value="Kegalle">Kegalle</option>
+            <option value="Kilinochchi">Kilinochchi</option>
+            <option value="Kurunegala">Kurunegala</option>
+            <option value="Mannar">Mannar</option>
+            <option value="Matale">Matale</option>
+            <option value="Matara">Matara</option>
+            <option value="Monaragala">Monaragala</option>
+            <option value="Mullaitivu">Mullaitivu</option>
+            <option value="Nuwara Eliya">Nuwara Eliya</option>
+            <option value="Polonnaruwa">Polonnaruwa</option>
+            <option value="Puttalam">Puttalam</option>
+            <option value="Ratnapura">Ratnapura</option>
+            <option value="Trincomalee">Trincomalee</option>
+            <option value="Vavuniya">Vavuniya</option>
+          `;
+
           if (type === "Farmer") {
             html = `
-             
+
               <label>NIC<input type="text" name="nic" /></label>
               <label>Full Name<input type="text" name="fullName" /></label>
               <label>Address<input type="text" name="address" /></label>
-              <label>District<input type="text" name="district" /></label>
+              <label>District<select name="district">${districtOptions}</select></label>
               <label>Contact Number<input type="text" name="contactNumber" /></label>
               <label>Total Area Of Paddy Land<input type="text" name="totalAreaOfPaddyLand" /></label>
             `;
@@ -384,7 +1092,7 @@
               <label>NIC<input type="text" name="nic" required /></label>
               <label>Name<input type="text" name="fullName" /></label>
               <label>Address<input type="text" name="address" /></label>
-              <label>District<input type="text" name="district" /></label>
+              <label>District<select name="district">${districtOptions}</select></label>
               <label>Contact Number<input type="text" name="contactNumber" /></label>
             `;
           } else if (type === "Miller") {
@@ -392,14 +1100,14 @@
               <label>Company Register Number<input type="text" name="companyRegisterNumber" required /></label>
               <label>Company Name<input type="text" name="companyName" /></label>
               <label>Address<input type="text" name="address" /></label>
-              <label>District<input type="text" name="district" /></label>
+              <label>District<select name="district">${districtOptions}</select></label>
               <label>Contact Number<input type="text" name="contactNumber" /></label>
             `;
           } else if (type === "PMB") {
             html = `
               <label>Full Name<input type="text" name="fullName" required /></label>
               <label>Address<input type="text" name="address" /></label>
-              <label>District<input type="text" name="district" /></label>
+              <label>District<select name="district">${districtOptions}</select></label>
               <label>Contact Number<input type="text" name="contactNumber" /></label>
             `;
           }
@@ -449,6 +1157,8 @@
         form &&
           form.addEventListener("submit", async function (e) {
             e.preventDefault();
+
+            const isEditing = editingUserId !== null;
             const data = new FormData(form);
             const userType = data.get("userType");
 
@@ -531,8 +1241,17 @@
             }
 
             try {
-              const res = await fetch("/api/users", {
-                method: "POST",
+              let url = "/api/users";
+              let method = "POST";
+
+              if (isEditing) {
+                // Edit mode - use PUT method and include user ID in URL
+                url = `/api/users/${encodeURIComponent(editingUserId)}`;
+                method = "PUT";
+              }
+
+              const res = await fetch(url, {
+                method: method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
               });
@@ -579,8 +1298,13 @@
             }
           });
 
-        // load users initially
-        loadUsers();
+        // Initialize manage user table with empty state
+        // User must select user type and paddy type to load data
+        const userTableBody = document.querySelector("#user-table tbody");
+        if (userTableBody) {
+          userTableBody.innerHTML =
+            '<tr><td colspan="4" style="text-align:center;padding:20px;color:#6b7280;">Select User Type and Paddy Type to view stock data</td></tr>';
+        }
 
         // load dashboard stats
         async function loadStats() {
@@ -738,6 +1462,279 @@
 
         // initial chart load
         loadPaddyChart();
+
+        // --- Analytics chart (same comparison chart shown in Analytics tab) ---
+        async function populateAnalyticsPaddySelect() {
+          try {
+            const sel = document.getElementById("analytics-paddy-type-select");
+            if (!sel) return;
+            const types = await fetchPaddyTypes();
+            // clear existing options (except the default)
+            sel.innerHTML = '<option value="">All paddy types</option>';
+            types.forEach((t) => {
+              const o = document.createElement("option");
+              o.value = t.name || t.id || "";
+              o.textContent = t.name || String(t.id || "");
+              sel.appendChild(o);
+            });
+            sel.addEventListener("change", function () {
+              loadAnalyticsChart();
+            });
+          } catch (e) {
+            console.error("Failed to populate analytics paddy select", e);
+          }
+        }
+
+        let analyticsChart = null;
+        async function loadAnalyticsChart() {
+          try {
+            const sel = document.getElementById("analytics-paddy-type-select");
+            const ptype = sel ? sel.value : "";
+            let url = "/api/stock_history";
+            if (ptype) url += "?paddy_type=" + encodeURIComponent(ptype);
+            const res = await fetch(url);
+            if (!res.ok) return;
+            const d = await res.json();
+            const dates = d.dates || [];
+            const pmbData = d.pmb || [];
+            const colData = d.collecter || [];
+            const milData = d.miller || [];
+            await ensureChartJs();
+            const ctx = document
+              .getElementById("paddy-chart-analytics")
+              .getContext("2d");
+            if (analyticsChart) {
+              analyticsChart.data.labels = dates;
+              analyticsChart.data.datasets[0].data = pmbData;
+              analyticsChart.data.datasets[1].data = colData;
+              analyticsChart.data.datasets[2].data = milData;
+              analyticsChart.update();
+              return;
+            }
+            analyticsChart = new Chart(ctx, {
+              type: "line",
+              data: {
+                labels: dates,
+                datasets: [
+                  {
+                    label: "PMB (kg)",
+                    data: pmbData,
+                    borderColor: "rgba(11,61,145,0.9)",
+                    backgroundColor: "rgba(11,61,145,0.08)",
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 3,
+                  },
+                  {
+                    label: "Collectors (kg)",
+                    data: colData,
+                    borderColor: "rgba(11,132,255,0.9)",
+                    backgroundColor: "rgba(11,132,255,0.08)",
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 3,
+                  },
+                  {
+                    label: "Millers (kg)",
+                    data: milData,
+                    borderColor: "rgba(245,158,11,0.9)",
+                    backgroundColor: "rgba(245,158,11,0.08)",
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 3,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                  x: { title: { display: true, text: "Date" } },
+                  y: {
+                    beginAtZero: true,
+                    title: { display: true, text: "Stock (kg)" },
+                  },
+                },
+                plugins: { legend: { display: true, position: "bottom" } },
+              },
+            });
+          } catch (e) {
+            console.error("Failed to load analytics paddy chart", e);
+          }
+        }
+
+        // Populate analytics paddy select now
+        populateAnalyticsPaddySelect();
+
+        // Populate district paddy select
+        async function populateDistrictPaddySelect() {
+          try {
+            const sel = document.getElementById("district-paddy-type-select");
+            if (!sel) return;
+            const types = await fetchPaddyTypes();
+            // clear existing options (except the default)
+            sel.innerHTML = '<option value="">All paddy types</option>';
+            types.forEach((t) => {
+              const o = document.createElement("option");
+              o.value = t.name || t.id || "";
+              o.textContent = t.name || String(t.id || "");
+              sel.appendChild(o);
+            });
+            sel.addEventListener("change", function () {
+              loadDistrictChart();
+            });
+          } catch (e) {
+            console.error("Failed to populate district paddy select", e);
+          }
+        }
+
+        populateDistrictPaddySelect();
+
+        // --- District-based stock chart ---
+        let districtChart = null;
+        async function loadDistrictChart() {
+          try {
+            const sel = document.getElementById("district-paddy-type-select");
+            const ptype = sel ? sel.value : "";
+            let url = "/api/stock_by_district";
+            if (ptype) url += "?paddy_type=" + encodeURIComponent(ptype);
+            const res = await fetch(url);
+            if (!res.ok) return;
+            const d = await res.json();
+            const districts = d.districts || [];
+
+            await ensureChartJs();
+            const ctx = document
+              .getElementById("district-chart-analytics")
+              .getContext("2d");
+
+            let datasets = [];
+
+            // Check if we have a single paddy type or multiple types breakdown
+            if (d.paddy_types && d.data) {
+              // Multiple paddy types - create datasets for each paddy type for both collectors and millers
+              const paddyTypes = d.paddy_types || [];
+              const colors = [
+                { bg: "rgba(11,132,255,0.7)", border: "rgba(11,132,255,1)" },
+                { bg: "rgba(245,158,11,0.7)", border: "rgba(245,158,11,1)" },
+                { bg: "rgba(16,185,129,0.7)", border: "rgba(16,185,129,1)" },
+                { bg: "rgba(239,68,68,0.7)", border: "rgba(239,68,68,1)" },
+                { bg: "rgba(139,92,246,0.7)", border: "rgba(139,92,246,1)" },
+                { bg: "rgba(236,72,153,0.7)", border: "rgba(236,72,153,1)" },
+              ];
+
+              paddyTypes.forEach((pt, idx) => {
+                const colorIdx = idx % colors.length;
+                // Collector dataset for this paddy type
+                datasets.push({
+                  label: `Collectors - ${pt} (kg)`,
+                  data: d.data.collectors[pt] || [],
+                  backgroundColor: colors[colorIdx].bg,
+                  borderColor: colors[colorIdx].border,
+                  borderWidth: 1,
+                });
+                // Miller dataset for this paddy type
+                datasets.push({
+                  label: `Millers - ${pt} (kg)`,
+                  data: d.data.millers[pt] || [],
+                  backgroundColor: colors[colorIdx].bg.replace("0.7", "0.5"),
+                  borderColor: colors[colorIdx].border,
+                  borderWidth: 1,
+                  borderDash: [5, 5],
+                });
+              });
+            } else {
+              // Single paddy type selected
+              const collectorsData = d.collectors || [];
+              const millersData = d.millers || [];
+
+              datasets = [
+                {
+                  label: "Collectors (kg)",
+                  data: collectorsData,
+                  backgroundColor: "rgba(11,132,255,0.7)",
+                  borderColor: "rgba(11,132,255,1)",
+                  borderWidth: 1,
+                },
+                {
+                  label: "Millers (kg)",
+                  data: millersData,
+                  backgroundColor: "rgba(245,158,11,0.7)",
+                  borderColor: "rgba(245,158,11,1)",
+                  borderWidth: 1,
+                },
+              ];
+            }
+
+            if (districtChart) {
+              districtChart.data.labels = districts;
+              districtChart.data.datasets = datasets;
+              districtChart.update();
+              return;
+            }
+
+            districtChart = new Chart(ctx, {
+              type: "bar",
+              data: {
+                labels: districts,
+                datasets: datasets,
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                  x: {
+                    title: { display: true, text: "District" },
+                    stacked: false,
+                  },
+                  y: {
+                    beginAtZero: true,
+                    title: { display: true, text: "Stock (kg)" },
+                    stacked: false,
+                  },
+                },
+                plugins: {
+                  legend: { display: true, position: "bottom" },
+                  tooltip: {
+                    mode: "index",
+                    intersect: false,
+                    callbacks: {
+                      label: function (context) {
+                        return (
+                          context.dataset.label +
+                          ": " +
+                          context.parsed.y.toFixed(2) +
+                          " kg"
+                        );
+                      },
+                    },
+                  },
+                },
+                interaction: {
+                  mode: "index",
+                  intersect: false,
+                },
+                barPercentage: 0.8,
+                categoryPercentage: 0.9,
+              },
+            });
+          } catch (e) {
+            console.error("Failed to load district chart", e);
+          }
+        }
+
+        // When analytics tab is activated, load both charts and user stock table
+        const analyticsTabAnchor = document.getElementById("tab-analytics");
+        if (analyticsTabAnchor) {
+          analyticsTabAnchor.addEventListener("click", function () {
+            // give UI a moment to show the panel
+            setTimeout(() => {
+              loadAnalyticsChart();
+              loadDistrictChart();
+              loadStockUsers();
+            }, 120);
+          });
+        }
 
         function escapeHtml(s) {
           return String(s).replace(/[&<>\"]/g, function (m) {

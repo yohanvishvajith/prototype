@@ -15,7 +15,8 @@
       <nav class="tabs" aria-label="Collecter tabs">
         <ul>
           <li class="tab active"><a href="#" data-index="0">Purchases</a></li>
-          <li class="tab"><a href="#" data-index="1">History</a></li>
+          <li class="tab"><a href="#" data-index="1">Damage</a></li>
+          <li class="tab"><a href="#" data-index="2">History</a></li>
         </ul>
       </nav>
     </header>
@@ -66,6 +67,53 @@
                 <th>Source</th>
                 <th>Paddy Type</th>
                 <th>Qty (kg)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="damage-panel" hidden>
+        <h2>Record Damage</h2>
+
+        <div class="card">
+          <form id="damageForm">
+            <label for="damagePaddyType">Paddy Type</label>
+            <select id="damagePaddyType" required>
+              <option value="">Select paddy type</option>
+              <option value="Samba">Samba</option>
+              <option value="Nadu">Nadu</option>
+              <option value="Keeri Samba">Keeri Samba</option>
+              <option value="Other">Other</option>
+            </select>
+
+            <label for="damageQty">Damaged Quantity (kg)</label>
+            <input id="damageQty" type="number" min="0" step="0.01" required />
+
+            <label for="damageReason">Reason</label>
+            <textarea
+              id="damageReason"
+              rows="3"
+              placeholder="Describe the reason for damage"
+              required
+            ></textarea>
+
+            <div class="modal-actions">
+              <button type="submit" class="btn primary">Record Damage</button>
+            </div>
+          </form>
+        </div>
+
+        <h3 style="margin-top: 18px">Recent Damages</h3>
+        <div class="table-wrap">
+          <table class="data-table" id="damagesTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Paddy Type</th>
+                <th>Qty (kg)</th>
+                <th>Reason</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -259,7 +307,11 @@
 
       function setupTabs() {
         const tabs = Array.from(document.querySelectorAll(".tabs .tab"));
-        const panels = [qs("#purchases-panel"), qs("#history-panel")];
+        const panels = [
+          qs("#purchases-panel"),
+          qs("#damage-panel"),
+          qs("#history-panel"),
+        ];
         tabs.forEach((tab, i) => {
           tab.addEventListener("click", (ev) => {
             ev.preventDefault();
@@ -370,6 +422,77 @@
         });
 
         renderTables();
+
+        // Damage form handler
+        qs("#damageForm").addEventListener("submit", (ev) => {
+          ev.preventDefault();
+          const paddyType = qs("#damagePaddyType").value;
+          const qty = qs("#damageQty").value;
+          const reason = qs("#damageReason").value;
+          if (!paddyType || !qty || !reason) {
+            alert("Please fill all fields");
+            return;
+          }
+
+          // POST the damage to the server
+          (async () => {
+            try {
+              const payload = {
+                user_id: currentUser ? currentUser.user_id : null,
+                paddy_type: paddyType,
+                quantity: qty,
+                reason: reason,
+                damage_date: new Date().toISOString(),
+              };
+              const resp = await fetch("/api/damages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+              });
+              const j = await resp.json().catch(() => ({}));
+              if (!resp.ok) {
+                alert(
+                  "Failed to record damage: " + (j.error || resp.statusText)
+                );
+                return;
+              }
+              // refresh from server
+              await renderDamageTable();
+              qs("#damageForm").reset();
+              alert("Damage recorded successfully");
+            } catch (err) {
+              console.error("Error recording damage", err);
+              alert("Error recording damage");
+            }
+          })();
+        });
+
+        renderDamageTable();
+      }
+
+      async function renderDamageTable() {
+        const dBody = qs("#damagesTable tbody");
+        dBody.innerHTML = "";
+        try {
+          const userId = currentUser ? currentUser.user_id : null;
+          const url = userId
+            ? `/api/damages?user_id=${encodeURIComponent(userId)}`
+            : "/api/damages";
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Failed to load damages");
+          const damages = await res.json();
+          damages.forEach((d) => {
+            const tr = document.createElement("tr");
+            const displayDate = d.damage_date || d.created_at;
+            tr.innerHTML = `<td>${new Date(displayDate).toLocaleString()}</td>
+                          <td>${d.paddy_type}</td>
+                          <td>${d.quantity}</td>
+                          <td>${d.reason}</td>`;
+            dBody.appendChild(tr);
+          });
+        } catch (e) {
+          console.error("Could not load damages:", e);
+        }
       }
 
       window.addEventListener("DOMContentLoaded", init);

@@ -125,6 +125,29 @@ def init_db():
         finally:
             cursor.close()
             conn.close()
+        # Create damage table to track damaged inventory
+        conn = get_connection(MYSQL_DATABASE)
+        cursor = conn.cursor()
+        create_damage = '''
+        CREATE TABLE IF NOT EXISTS `damage` (
+            id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            user_id VARCHAR(255),
+            paddy_type VARCHAR(128),
+            quantity DECIMAL(14,3),
+            reason TEXT,
+            damage_date DATETIME,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX (user_id),
+            INDEX (paddy_type)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        '''
+        try:
+            cursor.execute(create_damage)
+        except mysql.connector.Error as e:
+            print('Could not create damage table:', e)
+        finally:
+            cursor.close()
+            conn.close()
 
         print('Database initialized (database/table ensured).')
     except mysql.connector.Error as err:
@@ -704,6 +727,363 @@ def api_get_paddy_types():
         return jsonify({'error': str(err)}), 500
 
 
+@app.route('/api/damages', methods=['POST'])
+def api_add_damage():
+    """Insert a damage record into the damage table and deduct from stock.
+    Expects JSON body: { user_id, paddy_type, quantity, reason, damage_date }
+    Validates that sufficient stock exists before recording damage.
+    """
+    payload = request.get_json() or {}
+    user_id = payload.get('user_id')
+    paddy_type = payload.get('paddy_type')
+    quantity = payload.get('quantity')
+    reason = payload.get('reason')
+    damage_date = payload.get('damage_date')
+
+    # basic validation
+    if not user_id or not paddy_type or quantity is None or not reason:
+        return jsonify({'ok': False, 'error': 'Missing required fields (user_id, paddy_type, quantity, reason)'}), 400
+
+    try:
+        qty = float(quantity)
+        if qty <= 0:
+            return jsonify({'ok': False, 'error': 'Quantity must be greater than 0'}), 400
+    except Exception:
+        return jsonify({'ok': False, 'error': 'Invalid quantity'}), 400
+
+    try:
+        conn = get_connection(MYSQL_DATABASE)
+        # Start transaction
+        try:
+            conn.start_transaction()
+        except Exception:
+            pass
+        
+        cur = conn.cursor()
+        
+        # Check if sufficient stock exists for this user and paddy type
+        cur.execute('SELECT id, amount FROM `stock` WHERE user_id = %s AND `type` = %s FOR UPDATE', 
+                    (str(user_id), paddy_type))
+        stock_row = cur.fetchone()
+        
+        if not stock_row:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            cur.close()
+            conn.close()
+            return jsonify({'ok': False, 'error': f'No stock found for paddy type "{paddy_type}". Cannot record damage.'}), 400
+        
+        stock_id, current_amount = stock_row[0], stock_row[1] if stock_row[1] is not None else 0
+        
+        if float(current_amount) < qty:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            cur.close()
+            conn.close()
+            return jsonify({'ok': False, 'error': f'Insufficient stock. Available: {current_amount} kg, Requested: {qty} kg'}), 400
+        
+        # Deduct from stock
+        new_amount = float(current_amount) - qty
+        cur.execute('UPDATE `stock` SET amount = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s', 
+                    (new_amount, stock_id))
+        
+        # Insert damage record
+        insert_sql = 'INSERT INTO `damage` (user_id, paddy_type, quantity, reason, damage_date) VALUES (%s, %s, %s, %s, %s)'
+        cur.execute(insert_sql, (str(user_id), paddy_type, qty, reason, damage_date))
+        last_id = cur.lastrowid
+        
+        # Commit transaction
+        try:
+            conn.commit()
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            cur.close()
+            conn.close()
+            return jsonify({'ok': False, 'error': 'Failed to commit damage record'}), 500
+        
+        cur.close()
+        conn.close()
+        return jsonify({'ok': True, 'id': last_id, 'remaining_stock': new_amount}), 201
+    except mysql.connector.Error as err:
+        return jsonify({'ok': False, 'error': str(err)}), 500
+
+
+@app.route('/api/damages', methods=['GET'])
+def api_get_damages():
+    """Return damage records. Optional query param `user_id` to filter by user.
+    """
+    user_id_param = request.args.get('user_id')
+    try:
+        conn = get_connection(MYSQL_DATABASE)
+        cur = conn.cursor(dictionary=True)
+        if user_id_param:
+            sql = 'SELECT id, user_id, paddy_type, quantity, reason, damage_date, created_at FROM `damage` WHERE user_id = %s ORDER BY id DESC'
+            cur.execute(sql, (str(user_id_param),))
+        else:
+            sql = 'SELECT id, user_id, paddy_type, quantity, reason, damage_date, created_at FROM `damage` ORDER BY id DESC LIMIT 200'
+            cur.execute(sql)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return jsonify(rows)
+    except mysql.connector.Error as err:
+        return jsonify({'error': str(err)}), 500
+
+
+@app.route('/api/stock_by_district', methods=['GET'])
+def api_get_stock_by_district():
+    """Return stock grouped by district for Millers and Collectors.
+    Optional query param: paddy_type to filter by specific paddy type.
+    If no paddy_type specified, returns breakdown by paddy type.
+    
+    Response when paddy_type specified: {
+        districts: [...district names...],
+        collectors: [...stock amounts by district...],
+        millers: [...stock amounts by district...]
+    }
+    
+    Response when no paddy_type: {
+        districts: [...district names...],
+        paddy_types: [...list of paddy types...],
+        data: {
+            collectors: { paddy_type: [amounts_by_district] },
+            millers: { paddy_type: [amounts_by_district] }
+        }
+    }
+    """
+    paddy_type = request.args.get('paddy_type', '').strip()
+    try:
+        conn = get_connection(MYSQL_DATABASE)
+        cur = conn.cursor()
+        
+        if paddy_type:
+            # Single paddy type selected - simple aggregation
+            # Query for collectors stock by district
+            collector_sql = '''
+                SELECT u.district, SUM(s.amount) as total
+                FROM stock s
+                JOIN users u ON s.user_id = u.id
+                WHERE LOWER(u.user_type) LIKE %s AND s.type = %s
+                GROUP BY u.district
+                ORDER BY u.district
+            '''
+            cur.execute(collector_sql, ('%collect%', paddy_type))
+            collector_rows = cur.fetchall()
+            collector_data = {str(row[0] or 'Unknown'): float(row[1] or 0) for row in collector_rows}
+            
+            # Query for millers stock by district
+            miller_sql = '''
+                SELECT u.district, SUM(s.amount) as total
+                FROM stock s
+                JOIN users u ON s.user_id = u.id
+                WHERE LOWER(u.user_type) LIKE %s AND s.type = %s
+                GROUP BY u.district
+                ORDER BY u.district
+            '''
+            cur.execute(miller_sql, ('%miller%', paddy_type))
+            miller_rows = cur.fetchall()
+            miller_data = {str(row[0] or 'Unknown'): float(row[1] or 0) for row in miller_rows}
+            
+            # Combine all districts
+            all_districts = sorted(set(list(collector_data.keys()) + list(miller_data.keys())))
+            
+            # Build response arrays aligned to districts
+            collector_amounts = [collector_data.get(d, 0) for d in all_districts]
+            miller_amounts = [miller_data.get(d, 0) for d in all_districts]
+            
+            cur.close()
+            conn.close()
+            
+            return jsonify({
+                'districts': all_districts,
+                'collectors': collector_amounts,
+                'millers': miller_amounts
+            })
+        else:
+            # No paddy type selected - return breakdown by type
+            # Query for collectors stock by district and paddy type
+            collector_sql = '''
+                SELECT u.district, s.type, SUM(s.amount) as total
+                FROM stock s
+                JOIN users u ON s.user_id = u.id
+                WHERE LOWER(u.user_type) LIKE %s
+                GROUP BY u.district, s.type
+                ORDER BY u.district, s.type
+            '''
+            cur.execute(collector_sql, ('%collect%',))
+            collector_rows = cur.fetchall()
+            
+            # Query for millers stock by district and paddy type
+            miller_sql = '''
+                SELECT u.district, s.type, SUM(s.amount) as total
+                FROM stock s
+                JOIN users u ON s.user_id = u.id
+                WHERE LOWER(u.user_type) LIKE %s
+                GROUP BY u.district, s.type
+                ORDER BY u.district, s.type
+            '''
+            cur.execute(miller_sql, ('%miller%',))
+            miller_rows = cur.fetchall()
+            
+            cur.close()
+            conn.close()
+            
+            # Organize data by district and paddy type
+            all_districts = set()
+            all_paddy_types = set()
+            collector_data = {}  # {paddy_type: {district: amount}}
+            miller_data = {}     # {paddy_type: {district: amount}}
+            
+            for row in collector_rows:
+                district = str(row[0] or 'Unknown')
+                ptype = str(row[1] or 'Unknown')
+                amount = float(row[2] or 0)
+                all_districts.add(district)
+                all_paddy_types.add(ptype)
+                if ptype not in collector_data:
+                    collector_data[ptype] = {}
+                collector_data[ptype][district] = amount
+            
+            for row in miller_rows:
+                district = str(row[0] or 'Unknown')
+                ptype = str(row[1] or 'Unknown')
+                amount = float(row[2] or 0)
+                all_districts.add(district)
+                all_paddy_types.add(ptype)
+                if ptype not in miller_data:
+                    miller_data[ptype] = {}
+                miller_data[ptype][district] = amount
+            
+            all_districts = sorted(all_districts)
+            all_paddy_types = sorted(all_paddy_types)
+            
+            # Build response with arrays aligned to districts for each paddy type
+            collector_by_type = {}
+            miller_by_type = {}
+            
+            for ptype in all_paddy_types:
+                collector_by_type[ptype] = [collector_data.get(ptype, {}).get(d, 0) for d in all_districts]
+                miller_by_type[ptype] = [miller_data.get(ptype, {}).get(d, 0) for d in all_districts]
+            
+            return jsonify({
+                'districts': all_districts,
+                'paddy_types': all_paddy_types,
+                'data': {
+                    'collectors': collector_by_type,
+                    'millers': miller_by_type
+                }
+            })
+    except mysql.connector.Error as err:
+        return jsonify({'error': str(err)}), 500
+
+
+@app.route('/api/stock_by_user', methods=['GET'])
+def api_get_stock_by_user():
+    """Return stock totals by user for a given user_type (Collector or Miller).
+    Query params:
+      - user_type (required): collector|miller
+      - paddy_type (optional): filter by paddy type
+      - district (optional): filter by district
+      - q (optional): search query to match id, full_name or nic (substring, case-insensitive)
+
+    Response: [ { id, full_name, nic, district, total } ] sorted by total DESC
+    """
+    user_type = (request.args.get('user_type') or '').strip()
+    paddy_type = (request.args.get('paddy_type') or '').strip()
+    district = (request.args.get('district') or '').strip()
+    q = (request.args.get('q') or '').strip()
+
+    if not user_type:
+        return jsonify({'error': 'user_type is required (collector or miller)'}), 400
+
+    try:
+        conn = get_connection(MYSQL_DATABASE)
+        cur = conn.cursor(dictionary=True)
+
+        params = []
+        user_like = f"%{user_type.lower()}%"
+
+        if paddy_type:
+            sql = '''
+                SELECT u.id, u.full_name, u.nic, u.district, SUM(s.amount) AS total
+                FROM stock s
+                JOIN users u ON s.user_id = u.id
+                WHERE LOWER(u.user_type) LIKE %s AND s.type = %s
+            '''
+            params = [user_like, paddy_type]
+        else:
+            sql = '''
+                SELECT u.id, u.full_name, u.nic, u.district, SUM(s.amount) AS total
+                FROM stock s
+                JOIN users u ON s.user_id = u.id
+                WHERE LOWER(u.user_type) LIKE %s
+            '''
+            params = [user_like]
+
+        if district:
+            sql += " AND u.district = %s"
+            params.append(district)
+
+        if q:
+            # match id, full_name or nic
+            sql += " AND (u.id LIKE %s OR LOWER(u.full_name) LIKE %s OR LOWER(u.nic) LIKE %s)"
+            qparam = f"%{q}%"
+            params.extend([qparam, qparam.lower(), qparam.lower()])
+
+        sql += ' GROUP BY u.id, u.full_name, u.nic, u.district ORDER BY total DESC'
+
+        cur.execute(sql, tuple(params))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        out = []
+        for r in rows:
+            out.append({
+                'id': r.get('id'),
+                'full_name': r.get('full_name'),
+                'nic': r.get('nic'),
+                'district': r.get('district'),
+                'total': float(r.get('total') or 0)
+            })
+        return jsonify(out)
+    except mysql.connector.Error as err:
+        return jsonify({'error': str(err)}), 500
+
+
+@app.route('/api/stock_user_detail', methods=['GET'])
+def api_get_stock_user_detail():
+    """Return per-paddy-type stock for a given user_id.
+    Query param: user_id
+    Response: [ { type, amount } ]
+    """
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'user_id is required'}), 400
+    try:
+        conn = get_connection(MYSQL_DATABASE)
+        cur = conn.cursor(dictionary=True)
+        cur.execute('SELECT `type`, amount FROM stock WHERE user_id = %s ORDER BY `type`', (str(user_id),))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        out = []
+        for r in rows:
+            out.append({'type': r.get('type'), 'amount': float(r.get('amount') or 0)})
+        return jsonify(out)
+    except mysql.connector.Error as err:
+        return jsonify({'error': str(err)}), 500
+    except mysql.connector.Error as err:
+        return jsonify({'error': str(err)}), 500
+
+
 @app.route('/api/users', methods=['POST'])
 def api_add_user():
     payload = request.get_json() or {}
@@ -890,6 +1270,85 @@ def api_add_user():
         if row is None:
             row = {}
         return jsonify(row), 201
+    except mysql.connector.Error as err:
+        return jsonify({'error': str(err)}), 500
+
+
+@app.route('/api/users/<user_id>', methods=['PUT'])
+def api_update_user(user_id):
+    payload = request.get_json() or {}
+    
+    # Extract fields from payload
+    nic = payload.get('nic')
+    full_name = payload.get('fullName')
+    company_register_number = payload.get('companyRegisterNumber')
+    company_name = payload.get('companyName')
+    address = payload.get('address') or ''
+    district = payload.get('district')
+    contact_number = payload.get('contactNumber')
+    total_area = payload.get('totalAreaOfPaddyLand')
+    
+    try:
+        conn = get_connection(MYSQL_DATABASE)
+        cursor = conn.cursor()
+        
+        # Build UPDATE query with only non-None fields
+        update_fields = []
+        update_values = []
+        
+        if nic is not None:
+            update_fields.append('nic = %s')
+            update_values.append(nic)
+        if full_name is not None:
+            update_fields.append('full_name = %s')
+            update_values.append(full_name)
+        if company_register_number is not None:
+            update_fields.append('company_register_number = %s')
+            update_values.append(company_register_number)
+        if company_name is not None:
+            update_fields.append('company_name = %s')
+            update_values.append(company_name)
+        if address is not None:
+            update_fields.append('address = %s')
+            update_values.append(address)
+        if district is not None:
+            update_fields.append('district = %s')
+            update_values.append(district)
+        if contact_number is not None:
+            update_fields.append('contact_number = %s')
+            update_values.append(contact_number)
+        if total_area is not None:
+            update_fields.append('total_area_of_paddy_land = %s')
+            update_values.append(total_area)
+        
+        if not update_fields:
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'No fields to update'}), 400
+        
+        # Add user_id to values for WHERE clause
+        update_values.append(user_id)
+        
+        # Execute update
+        update_sql = f"UPDATE users SET {', '.join(update_fields)} WHERE id = %s"
+        cursor.execute(update_sql, tuple(update_values))
+        conn.commit()
+        
+        # Fetch and return updated user
+        cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))
+        row = cursor.fetchone()
+        
+        if row:
+            columns = [desc[0] for desc in cursor.description]
+            user_dict = dict(zip(columns, row))
+            cursor.close()
+            conn.close()
+            return jsonify(user_dict), 200
+        else:
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'User not found'}), 404
+            
     except mysql.connector.Error as err:
         return jsonify({'error': str(err)}), 500
 
