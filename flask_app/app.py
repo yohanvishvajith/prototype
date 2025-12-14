@@ -301,6 +301,11 @@ def animalfood_page():
     return render_template('animalfood.html')
 
 
+@app.route('/exporter')
+def exporter_page():
+    return render_template('exporter.html')
+
+
 @app.route('/api/me', methods=['GET'])
 def api_me():
     """Return the current logged-in user (from server-side session).
@@ -325,7 +330,8 @@ def log_last_inserted_user(user_type):
             "Wholesaler": "WHO",
             "Retailer": "RET",
             "Beer": "BER",
-            "Animal Food": "ANI"
+            "Animal Food": "ANI",
+            "Exporter": "EXP"
         }
 
         # Default prefix = first 3 letters of user_type if not found
@@ -403,7 +409,7 @@ def api_get_stats():
         conn = get_connection(MYSQL_DATABASE)
         cur = conn.cursor()
         # count by user_type using case-insensitive LIKE to be forgiving
-        counts = {'farmers': 0, 'collectors': 0, 'millers': 0, 'wholesalers': 0, 'retailers': 0, 'beer': 0, 'animalfood': 0}
+        counts = {'farmers': 0, 'collectors': 0, 'millers': 0, 'wholesalers': 0, 'retailers': 0, 'beer': 0, 'animalfood': 0, 'exporter': 0}
         try:
             cur.execute("SELECT user_type, COUNT(*) FROM users GROUP BY LOWER(user_type)")
         except Exception:
@@ -443,6 +449,11 @@ def api_get_stats():
                 counts['animalfood'] = cur.fetchone()[0]
             except Exception:
                 counts['animalfood'] = 0
+            try:
+                cur.execute("SELECT COUNT(*) FROM users WHERE LOWER(user_type) LIKE %s", ("%exporter%",))
+                counts['exporter'] = cur.fetchone()[0]
+            except Exception:
+                counts['exporter'] = 0
             cur.close()
             conn.close()
             return jsonify(counts)
@@ -463,6 +474,8 @@ def api_get_stats():
                     counts['wholesalers'] += c
                 elif 'retailer' in ut:
                     counts['retailers'] += c
+                elif 'exporter' in ut:
+                    counts['exporter'] += c
                 elif 'beer' in ut:
                     counts['beer'] += c
                 elif 'animal food' in ut:
@@ -634,7 +647,8 @@ def api_get_users_by_type():
             'Wholesaler': 'WHO',
             'Retailer': 'RET',
             'Beer': 'BER',
-            'Animal Food': 'ANI'
+            'Animal Food': 'ANI',
+            'Exporter': 'EXP'
         }
         out = []
         for r in rows:
@@ -1299,7 +1313,8 @@ def api_add_user():
             'Wholesaler': 'WHO',
             'Retailer': 'RET',
             'Beer': 'BER',
-            'Animal Food': 'ANI'
+            'Animal Food': 'ANI',
+            'Exporter': 'EXP'
         }
 
         cursor.close()

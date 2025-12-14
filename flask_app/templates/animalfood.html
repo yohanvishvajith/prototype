@@ -358,8 +358,11 @@
               fromUser === loggedInUser.user_code;
             if (!isRelated) return;
             const row = tbody.insertRow();
+            const dateValue = t.datetime || t.date;
             row.innerHTML = `
-              <td>${new Date(t.date).toLocaleDateString()}</td>
+              <td>${
+                dateValue ? new Date(dateValue).toLocaleDateString() : "N/A"
+              }</td>
               <td>${t.type}</td>
               <td>${t.quantity}</td>
             `;

@@ -110,6 +110,13 @@
               <div class="stat-label">Total Animal Food</div>
             </div>
           </div>
+          <div class="stat-card exporter">
+            <div class="stat-icon" aria-hidden="true">🚢</div>
+            <div>
+              <div class="stat-value" id="total-exporter">-</div>
+              <div class="stat-label">Total Exporters</div>
+            </div>
+          </div>
         </div>
         <div style="margin-top: 12px">
           <label
@@ -178,6 +185,7 @@
               <option value="Retailer">Retailer</option>
               <option value="Beer">Beer</option>
               <option value="Animal Food">Animal Food</option>
+              <option value="Exporter">Exporter</option>
               <option value="PMB">PMB</option>
             </select>
           </label>
@@ -624,6 +632,7 @@
                 <option>Retailer</option>
                 <option>Beer</option>
                 <option>Animal Food</option>
+                <option>Exporter</option>
                 <option>PMB</option>
               </select>
             </label>
@@ -1388,6 +1397,14 @@
               <label>District<select name="district">${districtOptions}</select></label>
               <label>Contact Number<input type="text" name="contactNumber" /></label>
             `;
+          } else if (type === "Exporter") {
+            html = `
+              <label>Company ID<input type="text" name="userId" required /></label>
+              <label>Full Name<input type="text" name="fullName" required /></label>
+              <label>Address<input type="text" name="address" /></label>
+              <label>District<select name="district">${districtOptions}</select></label>
+              <label>Contact Number<input type="text" name="contactNumber" /></label>
+            `;
           } else if (type === "PMB") {
             html = `
               <label>Full Name<input type="text" name="fullName" required /></label>
@@ -1406,7 +1423,8 @@
               type === "Wholesaler" ||
               type === "Retailer" ||
               type === "Beer" ||
-              type === "Animal Food"
+              type === "Animal Food" ||
+              type === "Exporter"
             ) {
               paddySection.style.display = "none";
               // clear any existing paddy rows
@@ -1416,7 +1434,7 @@
               paddySection.style.display = "";
             }
           }
-          // Show rice stock section for Miller, Wholesaler, Retailer, Beer and Animal Food
+          // Show rice stock section for Miller, Wholesaler, Retailer, Beer, Animal Food and Exporter
           const riceSection = document.getElementById("rice-section");
           if (riceSection) {
             if (
@@ -1424,7 +1442,8 @@
               type === "Wholesaler" ||
               type === "Retailer" ||
               type === "Beer" ||
-              type === "Animal Food"
+              type === "Animal Food" ||
+              type === "Exporter"
             ) {
               riceSection.style.display = "";
             } else {
@@ -1684,6 +1703,7 @@
             const r = document.getElementById("total-retailers");
             const b = document.getElementById("total-beer");
             const a = document.getElementById("total-animalfood");
+            const e = document.getElementById("total-exporter");
             if (f) f.textContent = d.farmers != null ? d.farmers : "-";
             if (c) c.textContent = d.collectors != null ? d.collectors : "-";
             if (m) m.textContent = d.millers != null ? d.millers : "-";
@@ -1691,6 +1711,7 @@
             if (r) r.textContent = d.retailers != null ? d.retailers : "-";
             if (b) b.textContent = d.beer != null ? d.beer : "-";
             if (a) a.textContent = d.animalfood != null ? d.animalfood : "-";
+            if (e) e.textContent = d.exporter != null ? d.exporter : "-";
           } catch (e) {
             console.error("Failed to load stats", e);
           }

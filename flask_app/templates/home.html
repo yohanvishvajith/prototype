@@ -51,6 +51,7 @@
               <option>Retailer</option>
               <option>Beer</option>
               <option>Animal Food</option>
+              <option>Exporter</option>
               <option>Admin</option>
               <option>PMB</option>
             </select>
@@ -125,6 +126,8 @@
                   window.location.href = "/beer";
                 } else if (returnedRole.startsWith("animal food")) {
                   window.location.href = "/animalfood";
+                } else if (returnedRole.startsWith("exporter")) {
+                  window.location.href = "/exporter";
                 } else if (returnedRole.startsWith("pmb")) {
                   window.location.href = "/pmb";
                 } else if (

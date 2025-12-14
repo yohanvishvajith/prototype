@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Beer Dashboard</title>
+    <title>Exporter Dashboard</title>
     <link rel="stylesheet" href="/static/style.css" />
     <style>
       body {
@@ -12,7 +12,7 @@
         background: #f4f7fa;
       }
       .top-bar {
-        background: linear-gradient(90deg, #4caf50, #2e7d32);
+        background: linear-gradient(90deg, #1e88e5, #1565c0);
         color: white;
         padding: 16px 24px;
         display: flex;
@@ -25,7 +25,7 @@
       }
       .top-bar .logout {
         background: white;
-        color: #2e7d32;
+        color: #1565c0;
         border: none;
         padding: 8px 16px;
         border-radius: 4px;
@@ -63,7 +63,7 @@
         transition: background 0.3s;
       }
       .tabs button.active {
-        background: #4caf50;
+        background: #1e88e5;
         color: white;
       }
       .tab-content {
@@ -94,7 +94,7 @@
         border-radius: 4px;
       }
       form button {
-        background: #4caf50;
+        background: #1e88e5;
         color: white;
         border: none;
         padding: 12px;
@@ -103,7 +103,7 @@
         font-weight: bold;
       }
       form button:hover {
-        background: #388e3c;
+        background: #1565c0;
       }
       table {
         width: 100%;
@@ -111,7 +111,7 @@
         margin-top: 16px;
       }
       table thead {
-        background: #4caf50;
+        background: #1e88e5;
         color: white;
       }
       table th,
@@ -127,7 +127,7 @@
   </head>
   <body>
     <div class="top-bar">
-      <h1>Beer Dashboard</h1>
+      <h1>Exporter Dashboard</h1>
       <button class="logout" onclick="logout()">Logout</button>
     </div>
 
@@ -171,8 +171,6 @@
         </form>
       </div>
 
-      <!-- Damage tab removed -->
-
       <!-- History Tab -->
       <div id="history" class="tab-content">
         <h2>Transaction History</h2>
@@ -180,7 +178,7 @@
           <thead>
             <tr>
               <th>Date</th>
-              <th>Rice Type</th>
+              <th>Type</th>
               <th>Quantity (kg)</th>
             </tr>
           </thead>
@@ -266,7 +264,6 @@
               '<option value="">Select Supplier</option>';
             suppliers.forEach((s) => {
               const option = document.createElement("option");
-              // fall back to id if user_code is not available
               option.value = s.id || s.user_code || "";
               option.textContent = s.user_code
                 ? `${s.user_code} - ${s.full_name}`
@@ -319,8 +316,6 @@
           }
         });
 
-      // Damage feature removed from UI
-
       async function loadPurchases() {
         try {
           const response = await fetch(
@@ -329,30 +324,12 @@
           if (!response.ok) throw new Error("Failed to load purchases");
           const data = await response.json();
 
-          const table = document.querySelector("#purchase-table");
-          if (!table) return; // Purchase history removed from UI
-          const tbody = table.querySelector("tbody");
-          if (!tbody) return;
-          tbody.innerHTML = "";
-          data.forEach((t) => {
-            const row = tbody.insertRow();
-            const fromUser = (t["from"] || t.from_user || "") + "";
-            const label =
-              fromUser && fromUser.startsWith("MIL") ? "Miller" : "Wholesaler";
-            row.innerHTML = `
-              <td>${new Date(t.date).toLocaleDateString()}</td>
-              <td>${label}</td>
-              <td>${fromUser}</td>
-              <td>${paddyMap[t.paddy_type] || t.paddy_type}</td>
-              <td>${t.quantity}</td>
-            `;
-          });
+          // Purchase history removed from UI; nothing to render here
+          return;
         } catch (err) {
           console.error(err);
         }
       }
-
-      // loadDamages removed (feature not shown in UI)
 
       async function loadHistory() {
         try {
@@ -395,7 +372,6 @@
             pts.forEach((p) => {
               paddyMap[p.id] = p.name;
             });
-            // populate all riceType selects (purchase + damage forms)
             const selects = document.querySelectorAll(
               'select[name="riceType"]'
             );
@@ -403,7 +379,7 @@
               sel.innerHTML = '<option value="">Select Rice Type</option>';
               pts.forEach((p) => {
                 const opt = document.createElement("option");
-                opt.value = p.id; // use id as value
+                opt.value = p.id;
                 opt.textContent = p.name;
                 sel.appendChild(opt);
               });
@@ -411,7 +387,6 @@
           }
         } catch (err) {
           console.warn("Failed to load paddy types", err);
-          // leave selects as-is
         }
 
         loggedInUser = await getCurrentUser();
