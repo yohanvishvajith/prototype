@@ -82,6 +82,34 @@
               <div class="stat-label">Total Millers</div>
             </div>
           </div>
+          <div class="stat-card wholesalers">
+            <div class="stat-icon" aria-hidden="true">🏪</div>
+            <div>
+              <div class="stat-value" id="total-wholesalers">-</div>
+              <div class="stat-label">Total Wholesalers</div>
+            </div>
+          </div>
+          <div class="stat-card retailers">
+            <div class="stat-icon" aria-hidden="true">🏬</div>
+            <div>
+              <div class="stat-value" id="total-retailers">-</div>
+              <div class="stat-label">Total Retailers</div>
+            </div>
+          </div>
+          <div class="stat-card beer">
+            <div class="stat-icon" aria-hidden="true">🍺</div>
+            <div>
+              <div class="stat-value" id="total-beer">-</div>
+              <div class="stat-label">Total Beer</div>
+            </div>
+          </div>
+          <div class="stat-card animalfood">
+            <div class="stat-icon" aria-hidden="true">🐾</div>
+            <div>
+              <div class="stat-value" id="total-animalfood">-</div>
+              <div class="stat-label">Total Animal Food</div>
+            </div>
+          </div>
         </div>
         <div style="margin-top: 12px">
           <label
@@ -146,6 +174,10 @@
               <option value="Farmer">Farmer</option>
               <option value="Collecter">Collecter</option>
               <option value="Miller">Miller</option>
+              <option value="Wholesaler">Wholesaler</option>
+              <option value="Retailer">Retailer</option>
+              <option value="Beer">Beer</option>
+              <option value="Animal Food">Animal Food</option>
               <option value="PMB">PMB</option>
             </select>
           </label>
@@ -203,281 +235,337 @@
         aria-labelledby="tab-analytics"
         hidden
       >
-        <h2>Analytics</h2>
-        <div style="margin-top: 12px">
-          <label
-            for="analytics-paddy-type-select"
-            style="
-              display: block;
-              margin-bottom: 6px;
-              font-size: 13px;
-              color: #374151;
-            "
-            >Paddy Type (Analytics)</label
-          >
-          <select
-            id="analytics-paddy-type-select"
-            style="
-              padding: 6px;
-              border-radius: 6px;
-              border: 1px solid #d1d5db;
-              min-width: 220px;
-              margin-bottom: 8px;
-            "
-          >
-            <option value="">All paddy types</option>
-          </select>
-          <div
-            style="
-              height: 260px;
-              max-width: 900px;
-              margin-top: 8px;
-              position: relative;
-            "
-          >
-            <canvas
-              id="paddy-chart-analytics"
-              aria-label="Paddy stock comparison chart"
-            ></canvas>
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #e5e7eb;
+          "
+        >
+          <div class="analytics-subtabs" style="display: flex; flex: 1; gap: 0">
+            <button
+              id="analytics-tab-paddy"
+              class="btn primary"
+              type="button"
+              style="flex: 1; border-radius: 0; margin: 0; padding: 12px"
+            >
+              Paddy
+            </button>
+            <button
+              id="analytics-tab-rice"
+              class="btn"
+              type="button"
+              style="flex: 1; border-radius: 0; margin: 0; padding: 12px"
+            >
+              Rice
+            </button>
           </div>
         </div>
 
-        <div
-          style="
-            margin-top: 32px;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 24px;
-          "
-        >
-          <h3 style="font-size: 16px; margin-bottom: 12px; color: #374151">
-            District-based Stock Analysis
-          </h3>
-          <label
-            for="district-paddy-type-select"
-            style="
-              display: block;
-              margin-bottom: 6px;
-              font-size: 13px;
-              color: #374151;
-            "
-            >Filter by Paddy Type</label
-          >
-          <select
-            id="district-paddy-type-select"
-            style="
-              padding: 6px;
-              border-radius: 6px;
-              border: 1px solid #d1d5db;
-              min-width: 220px;
-              margin-bottom: 8px;
-            "
-          >
-            <option value="">All paddy types</option>
-          </select>
+        <div id="analytics-paddy-panel">
+          <div style="margin-top: 12px">
+            <label
+              for="analytics-paddy-type-select"
+              style="
+                display: block;
+                margin-bottom: 6px;
+                font-size: 13px;
+                color: #374151;
+              "
+              >Paddy Type (Analytics)</label
+            >
+            <select
+              id="analytics-paddy-type-select"
+              style="
+                padding: 6px;
+                border-radius: 6px;
+                border: 1px solid #d1d5db;
+                min-width: 220px;
+                margin-bottom: 8px;
+              "
+            >
+              <option value="">All paddy types</option>
+            </select>
+            <div
+              style="
+                height: 260px;
+                max-width: 900px;
+                margin-top: 8px;
+                position: relative;
+              "
+            >
+              <canvas
+                id="paddy-chart-analytics"
+                aria-label="Paddy stock comparison chart"
+              ></canvas>
+            </div>
+          </div>
+
           <div
             style="
-              height: 320px;
-              max-width: 900px;
-              margin-top: 8px;
-              position: relative;
+              margin-top: 32px;
+              border-top: 1px solid #e5e7eb;
+              padding-top: 24px;
             "
           >
-            <canvas
-              id="district-chart-analytics"
-              aria-label="Stock by district - Millers and Collectors"
-            ></canvas>
+            <h3 style="font-size: 16px; margin-bottom: 12px; color: #374151">
+              District-based Stock Analysis
+            </h3>
+            <label
+              for="district-paddy-type-select"
+              style="
+                display: block;
+                margin-bottom: 6px;
+                font-size: 13px;
+                color: #374151;
+              "
+              >Filter by Paddy Type</label
+            >
+            <select
+              id="district-paddy-type-select"
+              style="
+                padding: 6px;
+                border-radius: 6px;
+                border: 1px solid #d1d5db;
+                min-width: 220px;
+                margin-bottom: 8px;
+              "
+            >
+              <option value="">All paddy types</option>
+            </select>
+            <div
+              style="
+                height: 320px;
+                max-width: 900px;
+                margin-top: 8px;
+                position: relative;
+              "
+            >
+              <canvas
+                id="district-chart-analytics"
+                aria-label="Stock by district - Millers and Collectors"
+              ></canvas>
+            </div>
+          </div>
+
+          <div
+            style="
+              margin-top: 32px;
+              border-top: 1px solid #e5e7eb;
+              padding-top: 24px;
+            "
+          >
+            <h3 style="font-size: 16px; margin-bottom: 12px; color: #374151">
+              User Stock Analysis
+            </h3>
+            <div
+              class="controls"
+              style="
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                margin-bottom: 12px;
+              "
+            >
+              <label
+                style="display: flex; flex-direction: column; font-size: 13px"
+              >
+                User Type
+                <select id="filter-user-type">
+                  <option value="collect">Collectors</option>
+                  <option value="miller">Millers</option>
+                </select>
+              </label>
+
+              <label
+                style="display: flex; flex-direction: column; font-size: 13px"
+              >
+                Paddy Type
+                <select id="filter-paddy-type"></select>
+              </label>
+
+              <label
+                style="display: flex; flex-direction: column; font-size: 13px"
+              >
+                District (Optional)
+                <select id="filter-district">
+                  <option value="">All Districts</option>
+                </select>
+              </label>
+
+              <button id="filter-refresh" class="btn">Refresh</button>
+            </div>
+
+            <div class="table-wrap">
+              <table
+                id="user-table"
+                class="data-table"
+                aria-describedby="user-table-desc"
+              >
+                <caption id="user-table-desc">
+                  User list
+                </caption>
+                <thead id="user-table-head">
+                  <tr>
+                    <th scope="col">User ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">User Type</th>
+                    <th scope="col">District</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- rows will be added here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div
+            style="
+              margin-top: 32px;
+              border-top: 1px solid #e5e7eb;
+              padding-top: 24px;
+            "
+          >
+            <h3 style="font-size: 16px; margin-bottom: 12px; color: #374151">
+              Transaction History
+            </h3>
+            <div
+              class="controls"
+              style="
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                align-items: flex-end;
+                margin-bottom: 12px;
+              "
+            >
+              <label
+                style="display: flex; flex-direction: column; font-size: 13px"
+              >
+                Transaction Type
+                <select id="transaction-type-filter">
+                  <option value="">All Types</option>
+                  <option value="farmer-collector">Farmer → Collector</option>
+                  <option value="farmer-pmb">Farmer → PMB</option>
+                  <option value="collector-collector">
+                    Collector → Collector
+                  </option>
+                  <option value="collector-miller">Collector → Miller</option>
+                  <option value="collector-pmb">Collector → PMB</option>
+                </select>
+              </label>
+
+              <label
+                style="display: flex; flex-direction: column; font-size: 13px"
+              >
+                Paddy Type
+                <select id="transaction-paddy-filter">
+                  <option value="">All Paddy Types</option>
+                </select>
+              </label>
+
+              <label
+                style="display: flex; flex-direction: column; font-size: 13px"
+              >
+                From Date
+                <input
+                  id="transaction-date-from"
+                  type="date"
+                  style="
+                    padding: 6px;
+                    border-radius: 6px;
+                    border: 1px solid #d1d5db;
+                  "
+                />
+              </label>
+
+              <label
+                style="display: flex; flex-direction: column; font-size: 13px"
+              >
+                To Date
+                <input
+                  id="transaction-date-to"
+                  type="date"
+                  style="
+                    padding: 6px;
+                    border-radius: 6px;
+                    border: 1px solid #d1d5db;
+                  "
+                />
+              </label>
+
+              <label
+                style="display: flex; flex-direction: column; font-size: 13px"
+              >
+                Search (From/To)
+                <input
+                  id="transaction-search"
+                  type="search"
+                  placeholder="Enter user ID"
+                  style="
+                    padding: 6px;
+                    border-radius: 6px;
+                    border: 1px solid #d1d5db;
+                  "
+                />
+              </label>
+
+              <button id="transaction-refresh" class="btn">Refresh</button>
+            </div>
+
+            <div class="table-wrap">
+              <table
+                id="transaction-table"
+                class="data-table"
+                aria-describedby="transaction-table-desc"
+              >
+                <caption id="transaction-table-desc">
+                  Transaction History
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">ID</th>
+                    <th scope="col">From</th>
+                    <th scope="col">To</th>
+                    <th scope="col">Paddy Type</th>
+                    <th scope="col">Quantity (kg)</th>
+                    <th scope="col">Date/Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- rows will be added here -->
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <div
-          style="
-            margin-top: 32px;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 24px;
-          "
-        >
-          <h3 style="font-size: 16px; margin-bottom: 12px; color: #374151">
-            User Stock Analysis
-          </h3>
-          <div
-            class="controls"
-            style="
-              display: flex;
-              gap: 8px;
-              align-items: center;
-              margin-bottom: 12px;
-            "
-          >
-            <label
-              style="display: flex; flex-direction: column; font-size: 13px"
+        <div id="analytics-rice-panel" hidden>
+          <div style="text-align: center; padding: 80px 24px; color: #6b7280">
+            <h3
+              style="
+                font-size: 24px;
+                font-weight: 600;
+                color: #374151;
+                margin-bottom: 12px;
+              "
             >
-              User Type
-              <select id="filter-user-type">
-                <option value="collect">Collectors</option>
-                <option value="miller">Millers</option>
-              </select>
-            </label>
-
-            <label
-              style="display: flex; flex-direction: column; font-size: 13px"
+              Rice Analytics
+            </h3>
+            <p style="font-size: 16px; margin-bottom: 24px">
+              To be implemented
+            </p>
+            <svg
+              style="width: 120px; height: 120px; opacity: 0.3"
+              fill="currentColor"
+              viewBox="0 0 20 20"
             >
-              Paddy Type
-              <select id="filter-paddy-type"></select>
-            </label>
-
-            <label
-              style="display: flex; flex-direction: column; font-size: 13px"
-            >
-              District (Optional)
-              <select id="filter-district">
-                <option value="">All Districts</option>
-              </select>
-            </label>
-
-            <button id="filter-refresh" class="btn">Refresh</button>
-          </div>
-
-          <div class="table-wrap">
-            <table
-              id="user-table"
-              class="data-table"
-              aria-describedby="user-table-desc"
-            >
-              <caption id="user-table-desc">
-                User list
-              </caption>
-              <thead id="user-table-head">
-                <tr>
-                  <th scope="col">User ID</th>
-                  <th scope="col">Name</th>
-                  <th scope="col">User Type</th>
-                  <th scope="col">District</th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- rows will be added here -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div
-          style="
-            margin-top: 32px;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 24px;
-          "
-        >
-          <h3 style="font-size: 16px; margin-bottom: 12px; color: #374151">
-            Transaction History
-          </h3>
-          <div
-            class="controls"
-            style="
-              display: flex;
-              flex-wrap: wrap;
-              gap: 8px;
-              align-items: flex-end;
-              margin-bottom: 12px;
-            "
-          >
-            <label
-              style="display: flex; flex-direction: column; font-size: 13px"
-            >
-              Transaction Type
-              <select id="transaction-type-filter">
-                <option value="">All Types</option>
-                <option value="farmer-collector">Farmer → Collector</option>
-                <option value="farmer-pmb">Farmer → PMB</option>
-                <option value="collector-collector">
-                  Collector → Collector
-                </option>
-                <option value="collector-miller">Collector → Miller</option>
-                <option value="collector-pmb">Collector → PMB</option>
-              </select>
-            </label>
-
-            <label
-              style="display: flex; flex-direction: column; font-size: 13px"
-            >
-              Paddy Type
-              <select id="transaction-paddy-filter">
-                <option value="">All Paddy Types</option>
-              </select>
-            </label>
-
-            <label
-              style="display: flex; flex-direction: column; font-size: 13px"
-            >
-              From Date
-              <input
-                id="transaction-date-from"
-                type="date"
-                style="
-                  padding: 6px;
-                  border-radius: 6px;
-                  border: 1px solid #d1d5db;
-                "
+              <path
+                d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"
               />
-            </label>
-
-            <label
-              style="display: flex; flex-direction: column; font-size: 13px"
-            >
-              To Date
-              <input
-                id="transaction-date-to"
-                type="date"
-                style="
-                  padding: 6px;
-                  border-radius: 6px;
-                  border: 1px solid #d1d5db;
-                "
-              />
-            </label>
-
-            <label
-              style="display: flex; flex-direction: column; font-size: 13px"
-            >
-              Search (From/To)
-              <input
-                id="transaction-search"
-                type="search"
-                placeholder="Enter user ID"
-                style="
-                  padding: 6px;
-                  border-radius: 6px;
-                  border: 1px solid #d1d5db;
-                "
-              />
-            </label>
-
-            <button id="transaction-refresh" class="btn">Refresh</button>
-          </div>
-
-          <div class="table-wrap">
-            <table
-              id="transaction-table"
-              class="data-table"
-              aria-describedby="transaction-table-desc"
-            >
-              <caption id="transaction-table-desc">
-                Transaction History
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">ID</th>
-                  <th scope="col">From</th>
-                  <th scope="col">To</th>
-                  <th scope="col">Paddy Type</th>
-                  <th scope="col">Quantity (kg)</th>
-                  <th scope="col">Date/Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- rows will be added here -->
-              </tbody>
-            </table>
+            </svg>
           </div>
         </div>
       </section>
@@ -532,6 +620,10 @@
                 <option selected>Farmer</option>
                 <option>Collecter</option>
                 <option>Miller</option>
+                <option>Wholesaler</option>
+                <option>Retailer</option>
+                <option>Beer</option>
+                <option>Animal Food</option>
                 <option>PMB</option>
               </select>
             </label>
@@ -547,6 +639,16 @@
                 </button>
               </div>
               <div id="paddy-list"></div>
+            </div>
+
+            <div id="rice-section">
+              <label>Rice stock</label>
+              <div class="rice-controls">
+                <button type="button" id="add-rice-btn" class="btn">
+                  Add Rice
+                </button>
+              </div>
+              <div id="rice-list"></div>
             </div>
 
             <div class="modal-actions">
@@ -1116,6 +1218,38 @@
           return wrap;
         }
 
+        function createRiceRow(types) {
+          const wrap = document.createElement("div");
+          wrap.className = "rice-row";
+          const sel = document.createElement("select");
+          sel.name = "riceType";
+          const ph = document.createElement("option");
+          ph.value = "";
+          ph.textContent = "Select paddy type (for rice)";
+          sel.appendChild(ph);
+          types.forEach((t) => {
+            const o = document.createElement("option");
+            o.value = t.name || t.id || "";
+            o.textContent = t.name || String(t.id || "");
+            sel.appendChild(o);
+          });
+          const qty = document.createElement("input");
+          qty.type = "number";
+          qty.name = "riceQty";
+          qty.min = "0";
+          qty.step = "0.01";
+          qty.placeholder = "Quantity (kg)";
+          const rem = document.createElement("button");
+          rem.type = "button";
+          rem.className = "btn";
+          rem.textContent = "Remove";
+          rem.addEventListener("click", () => wrap.remove());
+          wrap.appendChild(sel);
+          wrap.appendChild(qty);
+          wrap.appendChild(rem);
+          return wrap;
+        }
+
         function openModal() {
           lastFocused = document.activeElement;
           modal.hidden = false;
@@ -1223,6 +1357,37 @@
               <label>District<select name="district">${districtOptions}</select></label>
               <label>Contact Number<input type="text" name="contactNumber" /></label>
             `;
+          } else if (type === "Wholesaler") {
+            html = `
+              <label>Company Register Number<input type="text" name="companyRegisterNumber" required /></label>
+              <label>Company Name<input type="text" name="companyName" /></label>
+              <label>Address<input type="text" name="address" /></label>
+              <label>District<select name="district">${districtOptions}</select></label>
+              <label>Contact Number<input type="text" name="contactNumber" /></label>
+            `;
+          } else if (type === "Retailer") {
+            html = `
+              <label>Full Name<input type="text" name="fullName" required /></label>
+              <label>Address<input type="text" name="address" /></label>
+              <label>District<select name="district">${districtOptions}</select></label>
+              <label>Contact Number<input type="text" name="contactNumber" /></label>
+            `;
+          } else if (type === "Beer") {
+            html = `
+              <label>Company ID<input type="text" name="userId" required /></label>
+              <label>Full Name<input type="text" name="fullName" required /></label>
+              <label>Address<input type="text" name="address" /></label>
+              <label>District<select name="district">${districtOptions}</select></label>
+              <label>Contact Number<input type="text" name="contactNumber" /></label>
+            `;
+          } else if (type === "Animal Food") {
+            html = `
+              <label>Company ID<input type="text" name="userId" required /></label>
+              <label>Full Name<input type="text" name="fullName" required /></label>
+              <label>Address<input type="text" name="address" /></label>
+              <label>District<select name="district">${districtOptions}</select></label>
+              <label>Contact Number<input type="text" name="contactNumber" /></label>
+            `;
           } else if (type === "PMB") {
             html = `
               <label>Full Name<input type="text" name="fullName" required /></label>
@@ -1232,16 +1397,41 @@
             `;
           }
           typeFieldsContainer.innerHTML = html;
-          // Show or hide paddy stock section: farmers and PMB should not have initial stock input
+          // Show or hide paddy stock section: farmers, PMB and Wholesaler should not have initial paddy stock input
           const paddySection = document.getElementById("paddy-section");
           if (paddySection) {
-            if (type === "Farmer" || type === "PMB") {
+            if (
+              type === "Farmer" ||
+              type === "PMB" ||
+              type === "Wholesaler" ||
+              type === "Retailer" ||
+              type === "Beer" ||
+              type === "Animal Food"
+            ) {
               paddySection.style.display = "none";
               // clear any existing paddy rows
               const list = document.getElementById("paddy-list");
               if (list) list.innerHTML = "";
             } else {
               paddySection.style.display = "";
+            }
+          }
+          // Show rice stock section for Miller, Wholesaler, Retailer, Beer and Animal Food
+          const riceSection = document.getElementById("rice-section");
+          if (riceSection) {
+            if (
+              type === "Miller" ||
+              type === "Wholesaler" ||
+              type === "Retailer" ||
+              type === "Beer" ||
+              type === "Animal Food"
+            ) {
+              riceSection.style.display = "";
+            } else {
+              riceSection.style.display = "none";
+              // clear any existing rice rows
+              const riceList = document.getElementById("rice-list");
+              if (riceList) riceList.innerHTML = "";
             }
           }
         }
@@ -1274,6 +1464,25 @@
           });
         }
 
+        // wire Add Rice button
+        const addRiceBtn = document.getElementById("add-rice-btn");
+        if (addRiceBtn) {
+          addRiceBtn.addEventListener("click", async function () {
+            try {
+              if (!__paddyTypes || !__paddyTypes.length) {
+                __paddyTypes = await fetchPaddyTypes();
+              }
+              const list = document.getElementById("rice-list");
+              if (list) {
+                const row = createRiceRow(__paddyTypes);
+                list.appendChild(row);
+              }
+            } catch (e) {
+              console.error("Could not add rice row", e);
+            }
+          });
+        }
+
         form &&
           form.addEventListener("submit", async function (e) {
             e.preventDefault();
@@ -1287,6 +1496,7 @@
             const companyRegisterNumber = data.get("companyRegisterNumber")
               ? data.get("companyRegisterNumber").trim()
               : "";
+            const userId = data.get("userId") ? data.get("userId").trim() : "";
             const fullName = data.get("fullName")
               ? data.get("fullName").trim()
               : "";
@@ -1304,22 +1514,36 @@
               : "";
 
             // determine display values (no generic fields)
-            let displayId = nic || companyRegisterNumber;
+            let displayId = nic || companyRegisterNumber || userId;
             let displayName = fullName || companyName;
             const displayLocation = address;
 
-            // For PMB, the backend uses a fixed id ('PMB') so only a name is required
-            if (
-              userType &&
-              userType.toString().trim().toLowerCase() === "pmb"
-            ) {
+            // Special cases: PMB, Retailer, Beer and Animal Food require only a name (no external ID)
+            const lowType = (userType || "").toString().trim().toLowerCase();
+            if (lowType === "pmb") {
               displayId = "PMB";
               displayName = fullName || "";
               if (!displayName) {
                 alert("Name is required for PMB");
                 return;
               }
+            } else if (lowType === "retailer") {
+              // Retailer does not supply an external ID; require full name only
+              displayName = fullName || "";
+              if (!displayName) {
+                alert("Name is required for " + userType);
+                return;
+              }
+            } else if (lowType === "beer" || lowType === "animal food") {
+              // Beer and Animal Food require Company ID and name
+              displayId = userId || "";
+              displayName = fullName || "";
+              if (!displayId || !displayName) {
+                alert("Company ID and Name are required for " + userType);
+                return;
+              }
             } else {
+              // Other user types require both ID and Name (NIC/company reg no + name)
               if (!displayId || !displayName) {
                 alert("ID and Name are required for the selected user type");
                 return;
@@ -1356,6 +1580,27 @@
                 });
               }
               if (pList.length) payload.stock = pList;
+            } catch (err) {
+              // ignore
+            }
+
+            // collect rice stock rows if any (for Miller)
+            try {
+              const rList = [];
+              const riceContainer = document.getElementById("rice-list");
+              if (riceContainer) {
+                const rows = riceContainer.querySelectorAll(".rice-row");
+                rows.forEach((r) => {
+                  const sel = r.querySelector('select[name="riceType"]');
+                  const q = r.querySelector('input[name="riceQty"]');
+                  const rval = sel ? sel.value : "";
+                  const qtyval = q ? q.value : "";
+                  if (rval && qtyval) {
+                    rList.push({ paddyType: rval, quantity: qtyval });
+                  }
+                });
+              }
+              if (rList.length) payload.riceStock = rList;
             } catch (err) {
               // ignore
             }
@@ -1435,9 +1680,17 @@
             const f = document.getElementById("total-farmers");
             const c = document.getElementById("total-collectors");
             const m = document.getElementById("total-millers");
+            const w = document.getElementById("total-wholesalers");
+            const r = document.getElementById("total-retailers");
+            const b = document.getElementById("total-beer");
+            const a = document.getElementById("total-animalfood");
             if (f) f.textContent = d.farmers != null ? d.farmers : "-";
             if (c) c.textContent = d.collectors != null ? d.collectors : "-";
             if (m) m.textContent = d.millers != null ? d.millers : "-";
+            if (w) w.textContent = d.wholesalers != null ? d.wholesalers : "-";
+            if (r) r.textContent = d.retailers != null ? d.retailers : "-";
+            if (b) b.textContent = d.beer != null ? d.beer : "-";
+            if (a) a.textContent = d.animalfood != null ? d.animalfood : "-";
           } catch (e) {
             console.error("Failed to load stats", e);
           }
@@ -1710,6 +1963,70 @@
 
         populateDistrictPaddySelect();
 
+        // Analytics subtabs: show/hide Paddy vs Rice panels
+        function showPaddyPanel() {
+          const p = document.getElementById("analytics-paddy-panel");
+          const r = document.getElementById("analytics-rice-panel");
+          const btnP = document.getElementById("analytics-tab-paddy");
+          const btnR = document.getElementById("analytics-tab-rice");
+
+          if (p) {
+            p.hidden = false;
+            p.style.display = "block";
+          }
+          if (r) {
+            r.hidden = true;
+            r.style.display = "none";
+          }
+          if (btnP) {
+            btnP.classList.add("primary");
+          }
+          if (btnR) {
+            btnR.classList.remove("primary");
+          }
+
+          // load paddy analytics content
+          setTimeout(() => {
+            loadAnalyticsChart();
+            loadDistrictChart();
+            loadStockUsers();
+            loadTransactions();
+          }, 50);
+        }
+
+        function showRicePanel() {
+          const p = document.getElementById("analytics-paddy-panel");
+          const r = document.getElementById("analytics-rice-panel");
+          const btnP = document.getElementById("analytics-tab-paddy");
+          const btnR = document.getElementById("analytics-tab-rice");
+
+          if (p) {
+            p.hidden = true;
+            p.style.display = "none";
+          }
+          if (r) {
+            r.hidden = false;
+            r.style.display = "block";
+          }
+          if (btnP) {
+            btnP.classList.remove("primary");
+          }
+          if (btnR) {
+            btnR.classList.add("primary");
+          }
+        }
+
+        // wire analytics subtabs
+        const analyticsTabPaddyBtn = document.getElementById(
+          "analytics-tab-paddy"
+        );
+        const analyticsTabRiceBtn =
+          document.getElementById("analytics-tab-rice");
+        if (analyticsTabPaddyBtn)
+          analyticsTabPaddyBtn.addEventListener("click", showPaddyPanel);
+        if (analyticsTabRiceBtn)
+          analyticsTabRiceBtn.addEventListener("click", showRicePanel);
+
         // --- District-based stock chart ---
         let districtChart = null;
         async function loadDistrictChart() {
@@ -1847,12 +2164,9 @@
         const analyticsTabAnchor = document.getElementById("tab-analytics");
         if (analyticsTabAnchor) {
           analyticsTabAnchor.addEventListener("click", function () {
-            // give UI a moment to show the panel
+            // give UI a moment to show the panel; default to Paddy subtab
             setTimeout(() => {
-              loadAnalyticsChart();
-              loadDistrictChart();
-              loadStockUsers();
-              loadTransactions();
+              showPaddyPanel();
             }, 120);
           });
         }

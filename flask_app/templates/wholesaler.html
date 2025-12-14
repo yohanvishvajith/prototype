@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wholesaler - Sri Lanka Rice Supply Chain</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1 class="site-title">Wholesaler Dashboard</h1>
+      <nav class="tabs" aria-label="Wholesaler tabs">
+        <ul>
+          <li class="tab active"><a href="#" data-index="0">Purchases</a></li>
+          <li class="tab"><a href="#" data-index="1">Sales</a></li>
+          <li class="tab"><a href="#" data-index="2">Damage</a></li>
+          <li class="tab"><a href="#" data-index="3">History</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main class="content">
+      <section class="panel" id="purchases-panel">
+        <h2>Record Rice Purchase</h2>
+
+        <div class="card">
+          <form id="purchaseForm">
+            <label for="millerSelect">Purchase From Miller</label>
+            <select id="millerSelect" required>
+              <option value="">Loading...</option>
+            </select>
+
+            <label for="riceType">Rice Type (Paddy Base)</label>
+            <select id="riceType" required>
+              <option value="">Select rice type</option>
+            </select>
+
+            <label for="qty">Quantity (kg)</label>
+            <input id="qty" type="number" min="0" step="0.01" required />
+
+            <div class="modal-actions">
+              <button type="submit" class="btn primary">Save Purchase</button>
+              <a href="/" class="btn">Back to home</a>
+            </div>
+          </form>
+        </div>
+
+        <h3 style="margin-top: 18px">Recent Purchases</h3>
+        <div class="table-wrap">
+          <table class="data-table" id="purchasesTable">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Miller</th>
+                <th>Rice Type</th>
+                <th>Qty (kg)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="sales-panel" hidden>
+        <h2>Sales</h2>
+
+        <h3 style="margin-top: 18px">Recent Sales</h3>
+        <div class="table-wrap">
+          <table class="data-table" id="salesTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Rice Type</th>
+                <th>Qty (kg)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="damage-panel" hidden>
+        <h2>Record Damaged Rice</h2>
+
+        <div class="card">
+          <form id="damageForm">
+            <label for="damageRiceType">Rice Type</label>
+            <select id="damageRiceType" required>
+              <option value="">Select rice type</option>
+            </select>
+
+            <label for="damageQty">Quantity (kg)</label>
+            <input id="damageQty" type="number" min="0" step="0.01" required />
+
+            <label for="damageReason">Reason</label>
+            <textarea id="damageReason" rows="3" required></textarea>
+
+            <label for="damageDate">Date</label>
+            <input id="damageDate" type="date" required />
+
+            <div class="modal-actions">
+              <button type="submit" class="btn primary">Save Damage</button>
+            </div>
+          </form>
+        </div>
+
+        <h3 style="margin-top: 18px">Damage Records</h3>
+        <div class="table-wrap">
+          <table class="data-table" id="damagesTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Rice Type</th>
+                <th>Qty (kg)</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="history-panel" hidden>
+        <h2>History</h2>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 20px">
+          <button id="historyPurchaseBtn" class="btn primary" style="flex: 1">
+            Purchases
+          </button>
+          <button id="historySalesBtn" class="btn" style="flex: 1">
+            Sales
+          </button>
+        </div>
+
+        <div id="historyPurchasePanel">
+          <h3>Purchase History</h3>
+          <div class="table-wrap">
+            <table class="data-table" id="historyPurchaseTable">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Miller</th>
+                  <th>Rice Type</th>
+                  <th>Qty (kg)</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="historySalesPanel" hidden>
+          <h3>Sales History</h3>
+          <div class="table-wrap">
+            <table class="data-table" id="historySalesTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Customer</th>
+                  <th>Rice Type</th>
+                  <th>Qty (kg)</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      // Wholesaler purchases UI (server-backed)
+      let purchases = [];
+      let sales = [];
+      let currentUser = null;
+
+      function qs(sel) {
+        return document.querySelector(sel);
+      }
+
+      async function fetchMillers() {
+        try {
+          const res = await fetch("/api/users/by_type?type=Miller");
+          if (!res.ok) throw new Error("Failed to load millers");
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        } catch (e) {
+          console.error("Could not fetch millers:", e);
+          return [];
+        }
+      }
+
+      async function fetchPaddyTypes() {
+        try {
+          const res = await fetch("/api/paddy_types");
+          if (!res.ok) throw new Error("Failed to load paddy types");
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        } catch (e) {
+          console.error("Could not fetch paddy types:", e);
+          return [];
+        }
+      }
+
+      async function fetchCurrentUser() {
+        try {
+          const res = await fetch("/api/me");
+          if (!res.ok) return null;
+          const j = await res.json();
+          return j && j.ok ? j : null;
+        } catch (e) {
+          console.error("Could not fetch current user", e);
+          return null;
+        }
+      }
+
+      async function populateMillerSelect() {
+        const millers = await fetchMillers();
+        const sel = qs("#millerSelect");
+        sel.innerHTML = "";
+        const ph = document.createElement("option");
+        ph.value = "";
+        ph.textContent = "Select miller";
+        sel.appendChild(ph);
+        millers.forEach((m) => {
+          const o = document.createElement("option");
+          o.value = m.id;
+          o.textContent =
+            (m.full_name || m.name || "") +
+            " (" +
+            (m.user_code || m.id || "") +
+            ")";
+          sel.appendChild(o);
+        });
+      }
+
+      async function loadServerTransactions() {
+        try {
+          const userId = currentUser ? currentUser.user_id : null;
+          if (!userId) return;
+
+          const res = await fetch(
+            `/api/transactions?to=${encodeURIComponent(userId)}`
+          );
+          if (!res.ok) throw new Error("Failed to load transactions");
+          const txs = await res.json();
+
+          purchases = txs.map((t) => ({
+            id: t.id,
+            when: t.datetime || t.created_at,
+            from: t.from,
+            fromName: t.from_name || "Unknown",
+            riceType: t.type,
+            qty: parseFloat(t.quantity) || 0,
+            tx_id: t.id,
+          }));
+        } catch (e) {
+          console.error("Could not load server transactions", e);
+          purchases = [];
+        }
+      }
+
+      function renderPurchaseTables() {
+        const pBody = qs("#purchasesTable tbody");
+        const hBody = qs("#historyPurchaseTable tbody");
+        pBody.innerHTML = "";
+        hBody.innerHTML = "";
+
+        const recent = purchases.slice().reverse().slice(0, 10);
+        recent.forEach((r) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${new Date(r.when).toLocaleString()}</td><td>${
+            r.fromName
+          }</td><td>${r.riceType}</td><td>${r.qty}</td>`;
+          pBody.appendChild(tr);
+        });
+
+        purchases
+          .slice()
+          .reverse()
+          .forEach((r) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td>${new Date(r.when).toLocaleString()}</td><td>${
+              r.fromName
+            }</td><td>${r.riceType}</td><td>${r.qty}</td>`;
+            hBody.appendChild(tr);
+          });
+      }
+
+      function renderSalesTables() {
+        const sBody = qs("#salesTable tbody");
+        const hBody = qs("#historySalesTable tbody");
+        sBody.innerHTML = "";
+        hBody.innerHTML = "";
+
+        const recent = sales.slice().reverse().slice(0, 10);
+        recent.forEach((s) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${new Date(
+            s.date
+          ).toLocaleDateString()}</td><td>${s.customer}</td><td>${
+            s.riceType
+          }</td><td>${s.qty}</td>`;
+          sBody.appendChild(tr);
+        });
+
+        sales
+          .slice()
+          .reverse()
+          .forEach((s) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td>${new Date(
+              s.date
+            ).toLocaleDateString()}</td><td>${s.customer}</td><td>${
+              s.riceType
+            }</td><td>${s.qty}</td>`;
+            hBody.appendChild(tr);
+          });
+      }
+
+      async function renderDamageTable() {
+        const dBody = qs("#damagesTable tbody");
+        dBody.innerHTML = "";
+        try {
+          const userId = currentUser ? currentUser.user_id : null;
+          const url = userId
+            ? `/api/damages?user_id=${encodeURIComponent(userId)}`
+            : "/api/damages";
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Failed to load damages");
+          const damages = await res.json();
+          damages.forEach((d) => {
+            const tr = document.createElement("tr");
+            const displayDate = d.damage_date || d.created_at;
+            tr.innerHTML = `<td>${new Date(displayDate).toLocaleString()}</td>
+                          <td>${d.paddy_type}</td>
+                          <td>${d.quantity}</td>
+                          <td>${d.reason}</td>`;
+            dBody.appendChild(tr);
+          });
+        } catch (e) {
+          console.error("Could not load damages:", e);
+        }
+      }
+
+      function setupTabs() {
+        const tabs = Array.from(document.querySelectorAll(".tabs .tab"));
+        const panels = [
+          qs("#purchases-panel"),
+          qs("#sales-panel"),
+          qs("#damage-panel"),
+          qs("#history-panel"),
+        ];
+        tabs.forEach((tab, i) => {
+          tab.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            tabs.forEach((t) => t.classList.remove("active"));
+            tab.classList.add("active");
+            panels.forEach((p) => (p.hidden = true));
+            panels[i].hidden = false;
+          });
+        });
+      }
+
+      function setupHistoryTabs() {
+        const purchaseBtn = qs("#historyPurchaseBtn");
+        const salesBtn = qs("#historySalesBtn");
+        const purchasePanel = qs("#historyPurchasePanel");
+        const salesPanel = qs("#historySalesPanel");
+
+        purchaseBtn.addEventListener("click", () => {
+          purchaseBtn.classList.add("primary");
+          salesBtn.classList.remove("primary");
+          purchasePanel.hidden = false;
+          salesPanel.hidden = true;
+        });
+
+        salesBtn.addEventListener("click", () => {
+          salesBtn.classList.add("primary");
+          purchaseBtn.classList.remove("primary");
+          salesPanel.hidden = false;
+          purchasePanel.hidden = true;
+        });
+      }
+
+      async function init() {
+        setupTabs();
+        setupHistoryTabs();
+
+        const me = await fetchCurrentUser();
+        if (!me) {
+          window.location = "/";
+          return;
+        }
+        currentUser = me;
+        console.log("Current user (wholesaler):", currentUser);
+
+        await populateMillerSelect();
+
+        // Populate rice type dropdowns
+        const types = await fetchPaddyTypes();
+        const selectors = ["#riceType", "#saleRiceType", "#damageRiceType"];
+        selectors.forEach((selId) => {
+          const sel = qs(selId);
+          if (sel) {
+            sel.innerHTML = "";
+            const ph = document.createElement("option");
+            ph.value = "";
+            ph.textContent = "Select rice type";
+            sel.appendChild(ph);
+            types.forEach((t) => {
+              const o = document.createElement("option");
+              o.value = t.name || t.id || "";
+              o.textContent = t.name || String(t.id || "");
+              sel.appendChild(o);
+            });
+          }
+        });
+
+        // Set default dates
+        const today = new Date().toISOString().split("T")[0];
+        if (qs("#saleDate")) qs("#saleDate").value = today;
+        if (qs("#damageDate")) qs("#damageDate").value = today;
+
+        await loadServerTransactions();
+        renderPurchaseTables();
+
+        // Purchase form handler
+        qs("#purchaseForm").addEventListener("submit", async (ev) => {
+          ev.preventDefault();
+          const millerId = qs("#millerSelect").value;
+          const millerName =
+            qs("#millerSelect").selectedOptions[0]?.textContent || "";
+          const riceType = qs("#riceType").value;
+          const qty = qs("#qty").value;
+
+          if (!millerId || !riceType || !qty) {
+            alert("Please fill all fields");
+            return;
+          }
+
+          try {
+            const payload = {
+              from: millerId,
+              to: currentUser.user_id,
+              type: riceType,
+              quantity: parseFloat(qty),
+              datetime: new Date().toISOString(),
+            };
+            const resp = await fetch("/api/transactions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            if (!resp.ok) throw new Error("Failed to save purchase");
+            alert("Purchase saved successfully");
+            qs("#purchaseForm").reset();
+            await loadServerTransactions();
+            renderPurchaseTables();
+          } catch (err) {
+            console.error("Error saving purchase", err);
+            alert("Error saving purchase");
+          }
+        });
+
+        // Sales form removed: form submission handled elsewhere or disabled
+
+        // Damage form handler
+        qs("#damageForm").addEventListener("submit", async (ev) => {
+          ev.preventDefault();
+          const riceType = qs("#damageRiceType").value;
+          const qty = qs("#damageQty").value;
+          const reason = qs("#damageReason").value;
+          const date = qs("#damageDate").value;
+
+          if (!riceType || !qty || !reason || !date) {
+            alert("Please fill all fields");
+            return;
+          }
+
+          try {
+            const payload = {
+              user_id: currentUser.user_id,
+              paddy_type: riceType,
+              quantity: parseFloat(qty),
+              reason,
+              damage_date: date,
+            };
+            const resp = await fetch("/api/damages", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            if (!resp.ok) throw new Error("Failed to save damage");
+            alert("Damage record saved successfully");
+            qs("#damageForm").reset();
+            await renderDamageTable();
+          } catch (err) {
+            console.error("Error saving damage", err);
+            alert("Error saving damage");
+          }
+        });
+
+        // Load sales from localStorage
+        try {
+          const stored = localStorage.getItem("wholesaler_sales");
+          if (stored) {
+            sales = JSON.parse(stored);
+            renderSalesTables();
+          }
+        } catch (e) {
+          console.error("Could not load sales from localStorage", e);
+        }
+
+        await renderDamageTable();
+      }
+
+      window.addEventListener("DOMContentLoaded", init);
+    </script>
+  </body>
+</html>

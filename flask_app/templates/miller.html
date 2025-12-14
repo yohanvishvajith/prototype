@@ -15,8 +15,9 @@
       <nav class="tabs" aria-label="Miller tabs">
         <ul>
           <li class="tab active"><a href="#" data-index="0">Purchases</a></li>
-          <li class="tab"><a href="#" data-index="1">Damage</a></li>
-          <li class="tab"><a href="#" data-index="2">History</a></li>
+          <li class="tab"><a href="#" data-index="1">Milling</a></li>
+          <li class="tab"><a href="#" data-index="2">Damage</a></li>
+          <li class="tab"><a href="#" data-index="3">History</a></li>
         </ul>
       </nav>
     </header>
@@ -74,6 +75,60 @@
         </div>
       </section>
 
+      <section class="panel" id="milling-panel" hidden>
+        <h2>Milling Process</h2>
+
+        <div class="card">
+          <form id="millingForm">
+            <label for="millingPaddyType">Paddy Type</label>
+            <select id="millingPaddyType" required>
+              <option value="">Select paddy type</option>
+            </select>
+
+            <label for="millingInputQty">Input Paddy Quantity (kg)</label>
+            <input
+              id="millingInputQty"
+              type="number"
+              min="0"
+              step="0.01"
+              required
+            />
+
+            <label for="millingOutputQty">Output Rice Quantity (kg)</label>
+            <input
+              id="millingOutputQty"
+              type="number"
+              min="0"
+              step="0.01"
+              required
+            />
+
+            <label for="millingDate">Milling Date</label>
+            <input id="millingDate" type="date" required />
+
+            <div class="modal-actions">
+              <button type="submit" class="btn primary">Record Milling</button>
+            </div>
+          </form>
+        </div>
+
+        <h3 style="margin-top: 18px">Recent Milling Records</h3>
+        <div class="table-wrap">
+          <table class="data-table" id="millingTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Paddy Type</th>
+                <th>Input (kg)</th>
+                <th>Output Rice (kg)</th>
+                <th>Yield (%)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="panel" id="damage-panel" hidden>
         <h2>Record Damage</h2>
 
@@ -122,20 +177,53 @@
       </section>
 
       <section class="panel" id="history-panel" hidden>
-        <h2>Purchases History</h2>
-        <div class="table-wrap">
-          <table class="data-table" id="historyTable">
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>From (type)</th>
-                <th>Source</th>
-                <th>Paddy Type</th>
-                <th>Qty (kg)</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px">
+          <button
+            id="historyTransactionBtn"
+            class="btn primary"
+            style="flex: 1"
+          >
+            Transaction
+          </button>
+          <button id="historyMillingBtn" class="btn" style="flex: 1">
+            Milling
+          </button>
+        </div>
+
+        <div id="historyTransactionPanel">
+          <h3>Purchases History</h3>
+          <div class="table-wrap">
+            <table class="data-table" id="historyTable">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>From (type)</th>
+                  <th>Source</th>
+                  <th>Paddy Type</th>
+                  <th>Qty (kg)</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="historyMillingPanel" hidden>
+          <h3>Milling History</h3>
+          <div class="table-wrap">
+            <table class="data-table" id="historyMillingTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Paddy Type</th>
+                  <th>Input Paddy (kg)</th>
+                  <th>Output Rice (kg)</th>
+                  <th>Yield (%)</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </section>
     </main>
@@ -298,6 +386,7 @@
         const tabs = Array.from(document.querySelectorAll(".tabs .tab"));
         const panels = [
           qs("#purchases-panel"),
+          qs("#milling-panel"),
           qs("#damage-panel"),
           qs("#history-panel"),
         ];
@@ -312,8 +401,63 @@
         });
       }
 
+      function setupHistoryTabs() {
+        const transactionBtn = qs("#historyTransactionBtn");
+        const millingBtn = qs("#historyMillingBtn");
+        const transactionPanel = qs("#historyTransactionPanel");
+        const millingPanel = qs("#historyMillingPanel");
+
+        transactionBtn.addEventListener("click", () => {
+          transactionBtn.classList.add("primary");
+          millingBtn.classList.remove("primary");
+          transactionPanel.hidden = false;
+          millingPanel.hidden = true;
+        });
+
+        millingBtn.addEventListener("click", () => {
+          millingBtn.classList.add("primary");
+          transactionBtn.classList.remove("primary");
+          millingPanel.hidden = false;
+          transactionPanel.hidden = true;
+          renderHistoryMillingTable();
+        });
+      }
+
+      async function renderHistoryMillingTable() {
+        const mBody = qs("#historyMillingTable tbody");
+        mBody.innerHTML = "";
+        try {
+          const millerId = currentUser ? currentUser.user_id : null;
+          const url = millerId
+            ? `/api/milling?miller_id=${encodeURIComponent(millerId)}`
+            : "/api/milling";
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Failed to load milling records");
+          const millingRecords = await res.json();
+          millingRecords.forEach((r) => {
+            const inputQty = parseFloat(r.input_paddy) || 0;
+            const outputQty = parseFloat(r.output_rice) || 0;
+            const yield_percent =
+              inputQty > 0 ? ((outputQty / inputQty) * 100).toFixed(2) : 0;
+            const tr = document.createElement("tr");
+            const displayDate = r.milling_date || r.created_at;
+            tr.innerHTML = `<td>${new Date(
+              displayDate
+            ).toLocaleDateString()}</td>
+                          <td>${r.paddy_type}</td>
+                          <td>${inputQty.toFixed(2)}</td>
+                          <td>${outputQty.toFixed(2)}</td>
+                          <td>${yield_percent}%</td>`;
+            mBody.appendChild(tr);
+          });
+        } catch (e) {
+          console.error("Could not load milling records:", e);
+        }
+      }
+
       async function init() {
         setupTabs();
+        setupHistoryTabs();
         // load current user then load server transactions
         // get logged-in user from server-side session
         const me = await fetchCurrentUser();
@@ -356,6 +500,24 @@
         fromSel.addEventListener("change", (e) =>
           populateSourceSelect(e.target.value)
         );
+
+        // Populate milling paddy type dropdown
+        const millingPaddyTypeSel = qs("#millingPaddyType");
+        millingPaddyTypeSel.innerHTML = "";
+        const millingPh = document.createElement("option");
+        millingPh.value = "";
+        millingPh.textContent = "Select paddy type";
+        millingPaddyTypeSel.appendChild(millingPh);
+        types.forEach((t) => {
+          const o = document.createElement("option");
+          o.value = t.name || t.id || "";
+          o.textContent = t.name || String(t.id || "");
+          millingPaddyTypeSel.appendChild(o);
+        });
+
+        // Set default milling date to today
+        const today = new Date().toISOString().split("T")[0];
+        qs("#millingDate").value = today;
 
         qs("#purchaseForm").addEventListener("submit", (ev) => {
           ev.preventDefault();
@@ -464,6 +626,96 @@
         });
 
         renderDamageTable();
+        renderMillingTable();
+
+        // Milling form handler
+        qs("#millingForm").addEventListener("submit", (ev) => {
+          ev.preventDefault();
+          const paddyType = qs("#millingPaddyType").value;
+          const inputQty = qs("#millingInputQty").value;
+          const outputQty = qs("#millingOutputQty").value;
+          const millingDate = qs("#millingDate").value;
+
+          if (!paddyType || !inputQty || !outputQty || !millingDate) {
+            alert("Please fill all fields");
+            return;
+          }
+
+          const inputNum = parseFloat(inputQty);
+          const outputNum = parseFloat(outputQty);
+
+          if (outputNum > inputNum) {
+            alert("Output rice quantity cannot exceed input paddy quantity");
+            return;
+          }
+
+          // POST the milling record to the server
+          (async () => {
+            try {
+              const payload = {
+                miller_id: currentUser ? currentUser.user_id : null,
+                paddy_type: paddyType,
+                input_paddy: inputNum,
+                output_rice: outputNum,
+                milling_date: millingDate,
+              };
+              const resp = await fetch("/api/milling", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+              });
+              const j = await resp.json().catch(() => ({}));
+              if (!resp.ok) {
+                alert(
+                  "Failed to save milling record: " +
+                    (j.error || resp.statusText)
+                );
+                return;
+              }
+              // refresh from server
+              await renderMillingTable();
+              qs("#millingForm").reset();
+              const today = new Date().toISOString().split("T")[0];
+              qs("#millingDate").value = today;
+              alert("Milling record saved successfully");
+            } catch (err) {
+              console.error("Error saving milling record", err);
+              alert("Error saving milling record");
+            }
+          })();
+        });
+      }
+
+      async function renderMillingTable() {
+        const mBody = qs("#millingTable tbody");
+        mBody.innerHTML = "";
+        try {
+          const millerId = currentUser ? currentUser.user_id : null;
+          const url = millerId
+            ? `/api/milling?miller_id=${encodeURIComponent(millerId)}`
+            : "/api/milling";
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Failed to load milling records");
+          const millingRecords = await res.json();
+          millingRecords.forEach((r) => {
+            const inputQty = parseFloat(r.input_paddy) || 0;
+            const outputQty = parseFloat(r.output_rice) || 0;
+            const yield_percent =
+              inputQty > 0 ? ((outputQty / inputQty) * 100).toFixed(2) : 0;
+            const tr = document.createElement("tr");
+            const displayDate = r.milling_date || r.created_at;
+            tr.innerHTML = `<td>${new Date(
+              displayDate
+            ).toLocaleDateString()}</td>
+                          <td>${r.paddy_type}</td>
+                          <td>${inputQty.toFixed(2)}</td>
+                          <td>${outputQty.toFixed(2)}</td>
+                          <td>${yield_percent}%</td>`;
+            mBody.appendChild(tr);
+          });
+        } catch (e) {
+          console.error("Could not load milling records:", e);
+        }
       }
 
       async function renderDamageTable() {
