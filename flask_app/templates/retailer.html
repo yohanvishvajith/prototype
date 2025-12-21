@@ -15,9 +15,7 @@
       <nav class="tabs" aria-label="Retailer tabs">
         <ul>
           <li class="tab active"><a href="#" data-index="0">Purchases</a></li>
-          <li class="tab"><a href="#" data-index="1">Sales</a></li>
-          <li class="tab"><a href="#" data-index="2">Damage</a></li>
-          <li class="tab"><a href="#" data-index="3">History</a></li>
+          <li class="tab"><a href="#" data-index="1">History</a></li>
         </ul>
       </nav>
     </header>
@@ -64,75 +62,12 @@
         </div>
       </section>
 
-      <section class="panel" id="sales-panel" hidden>
-        <h2>Sales</h2>
-
-        <h3 style="margin-top: 18px">Recent Sales</h3>
-        <div class="table-wrap">
-          <table class="data-table" id="salesTable">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Customer</th>
-                <th>Rice Type</th>
-                <th>Qty (kg)</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="panel" id="damage-panel" hidden>
-        <h2>Record Damaged Rice</h2>
-
-        <div class="card">
-          <form id="damageForm">
-            <label for="damageRiceType">Rice Type</label>
-            <select id="damageRiceType" required>
-              <option value="">Select rice type</option>
-            </select>
-
-            <label for="damageQty">Quantity (kg)</label>
-            <input id="damageQty" type="number" min="0" step="0.01" required />
-
-            <label for="damageReason">Reason</label>
-            <textarea id="damageReason" rows="3" required></textarea>
-
-            <label for="damageDate">Date</label>
-            <input id="damageDate" type="date" required />
-
-            <div class="modal-actions">
-              <button type="submit" class="btn primary">Save Damage</button>
-            </div>
-          </form>
-        </div>
-
-        <h3 style="margin-top: 18px">Damage Records</h3>
-        <div class="table-wrap">
-          <table class="data-table" id="damagesTable">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Rice Type</th>
-                <th>Qty (kg)</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </section>
-
       <section class="panel" id="history-panel" hidden>
         <h2>History</h2>
 
         <div style="display: flex; gap: 10px; margin-bottom: 20px">
           <button id="historyPurchaseBtn" class="btn primary" style="flex: 1">
             Purchases
-          </button>
-          <button id="historySalesBtn" class="btn" style="flex: 1">
-            Sales
           </button>
         </div>
 
@@ -152,30 +87,12 @@
             </table>
           </div>
         </div>
-
-        <div id="historySalesPanel" hidden>
-          <h3>Sales History</h3>
-          <div class="table-wrap">
-            <table class="data-table" id="historySalesTable">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Customer</th>
-                  <th>Rice Type</th>
-                  <th>Qty (kg)</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
       </section>
     </main>
 
     <script>
       // Retailer purchases UI (server-backed)
       let purchases = [];
-      let sales = [];
       let currentUser = null;
 
       function qs(sel) {
@@ -253,7 +170,7 @@
             id: t.id,
             when: t.datetime || t.created_at,
             from: t.from,
-            fromName: t.from_name || "Unknown",
+            fromName: t.from_name || t.from || "Unknown",
             riceType: t.type,
             qty: parseFloat(t.quantity) || 0,
             tx_id: t.id,
@@ -291,70 +208,9 @@
           });
       }
 
-      function renderSalesTables() {
-        const sBody = qs("#salesTable tbody");
-        const hBody = qs("#historySalesTable tbody");
-        sBody.innerHTML = "";
-        hBody.innerHTML = "";
-
-        const recent = sales.slice().reverse().slice(0, 10);
-        recent.forEach((s) => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `<td>${new Date(
-            s.date
-          ).toLocaleDateString()}</td><td>${s.customer}</td><td>${
-            s.riceType
-          }</td><td>${s.qty}</td>`;
-          sBody.appendChild(tr);
-        });
-
-        sales
-          .slice()
-          .reverse()
-          .forEach((s) => {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `<td>${new Date(
-              s.date
-            ).toLocaleDateString()}</td><td>${s.customer}</td><td>${
-              s.riceType
-            }</td><td>${s.qty}</td>`;
-            hBody.appendChild(tr);
-          });
-      }
-
-      async function renderDamageTable() {
-        const dBody = qs("#damagesTable tbody");
-        dBody.innerHTML = "";
-        try {
-          const userId = currentUser ? currentUser.user_id : null;
-          const url = userId
-            ? `/api/damages?user_id=${encodeURIComponent(userId)}`
-            : "/api/damages";
-          const res = await fetch(url);
-          if (!res.ok) throw new Error("Failed to load damages");
-          const damages = await res.json();
-          damages.forEach((d) => {
-            const tr = document.createElement("tr");
-            const displayDate = d.damage_date || d.created_at;
-            tr.innerHTML = `<td>${new Date(displayDate).toLocaleString()}</td>
-                          <td>${d.paddy_type}</td>
-                          <td>${d.quantity}</td>
-                          <td>${d.reason}</td>`;
-            dBody.appendChild(tr);
-          });
-        } catch (e) {
-          console.error("Could not load damages:", e);
-        }
-      }
-
       function setupTabs() {
         const tabs = Array.from(document.querySelectorAll(".tabs .tab"));
-        const panels = [
-          qs("#purchases-panel"),
-          qs("#sales-panel"),
-          qs("#damage-panel"),
-          qs("#history-panel"),
-        ];
+        const panels = [qs("#purchases-panel"), qs("#history-panel")];
         tabs.forEach((tab, i) => {
           tab.addEventListener("click", (ev) => {
             ev.preventDefault();
@@ -368,22 +224,11 @@
 
       function setupHistoryTabs() {
         const purchaseBtn = qs("#historyPurchaseBtn");
-        const salesBtn = qs("#historySalesBtn");
         const purchasePanel = qs("#historyPurchasePanel");
-        const salesPanel = qs("#historySalesPanel");
 
         purchaseBtn.addEventListener("click", () => {
           purchaseBtn.classList.add("primary");
-          salesBtn.classList.remove("primary");
           purchasePanel.hidden = false;
-          salesPanel.hidden = true;
-        });
-
-        salesBtn.addEventListener("click", () => {
-          salesBtn.classList.add("primary");
-          purchaseBtn.classList.remove("primary");
-          salesPanel.hidden = false;
-          purchasePanel.hidden = true;
         });
       }
 
@@ -403,7 +248,7 @@
 
         // Populate rice type dropdowns
         const types = await fetchPaddyTypes();
-        const selectors = ["#riceType", "#damageRiceType"];
+        const selectors = ["#riceType"];
         selectors.forEach((selId) => {
           const sel = qs(selId);
           if (sel) {
@@ -421,10 +266,7 @@
           }
         });
 
-        // Set default date
-        const today = new Date().toISOString().split("T")[0];
-        if (qs("#damageDate")) qs("#damageDate").value = today;
-
+        // Set up page data
         await loadServerTransactions();
         renderPurchaseTables();
 
@@ -465,55 +307,6 @@
             alert("Error saving purchase");
           }
         });
-
-        // Damage form handler
-        qs("#damageForm").addEventListener("submit", async (ev) => {
-          ev.preventDefault();
-          const riceType = qs("#damageRiceType").value;
-          const qty = qs("#damageQty").value;
-          const reason = qs("#damageReason").value;
-          const date = qs("#damageDate").value;
-
-          if (!riceType || !qty || !reason || !date) {
-            alert("Please fill all fields");
-            return;
-          }
-
-          try {
-            const payload = {
-              user_id: currentUser.user_id,
-              paddy_type: riceType,
-              quantity: parseFloat(qty),
-              reason,
-              damage_date: date,
-            };
-            const resp = await fetch("/api/damages", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-            if (!resp.ok) throw new Error("Failed to save damage");
-            alert("Damage record saved successfully");
-            qs("#damageForm").reset();
-            await renderDamageTable();
-          } catch (err) {
-            console.error("Error saving damage", err);
-            alert("Error saving damage");
-          }
-        });
-
-        // Load sales from localStorage
-        try {
-          const stored = localStorage.getItem("retailer_sales");
-          if (stored) {
-            sales = JSON.parse(stored);
-            renderSalesTables();
-          }
-        } catch (e) {
-          console.error("Could not load sales from localStorage", e);
-        }
-
-        await renderDamageTable();
       }
 
       window.addEventListener("DOMContentLoaded", init);

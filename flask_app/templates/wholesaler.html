@@ -274,7 +274,7 @@
             id: t.id,
             when: t.datetime || t.created_at,
             from: t.from,
-            fromName: t.from_name || "Unknown",
+            fromName: t.from_name || t.from || "Unknown",
             riceType: t.type,
             qty: parseFloat(t.quantity) || 0,
             tx_id: t.id,

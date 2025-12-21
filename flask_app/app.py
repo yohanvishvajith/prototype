@@ -779,35 +779,71 @@ def api_add_transaction():
         except Exception:
             sender_type = None
 
+        # Determine if this is a rice transaction (sender is Miller, PMB, Wholesaler, or Retailer selling rice)
+        is_rice_transaction = isinstance(sender_type, str) and (
+            'miller' in sender_type.lower() or 
+            'pmb' in sender_type.lower() or 
+            'wholesaler' in sender_type.lower() or 
+            'retailer' in sender_type.lower()
+        )
+
         # If sender is not a Farmer, ensure they have sufficient stock before proceeding
         try:
             if not (isinstance(sender_type, str) and sender_type.strip().lower().startswith('farmer')):
-                # lock sender stock row for update
-                sel_s_sql = 'SELECT id, amount FROM `stock` WHERE user_id = %s AND `type` = %s FOR UPDATE'
-                cur.execute(sel_s_sql, (str(from_val), ttype))
-                srow = cur.fetchone()
-                if not srow:
-                    # no stock row -> insufficient
-                    try:
-                        conn.rollback()
-                    except Exception:
-                        pass
-                    cur.close()
-                    conn.close()
-                    return jsonify({'ok': False, 'error': 'Insufficient stock: sender has no stock for this paddy type'}), 400
-                s_stock_id, s_current = srow[0], srow[1] if srow[1] is not None else 0
-                if float(s_current) < float(qty):
-                    try:
-                        conn.rollback()
-                    except Exception:
-                        pass
-                    cur.close()
-                    conn.close()
-                    return jsonify({'ok': False, 'error': 'Insufficient stock: sender balance is lower than requested quantity'}), 400
-                # deduct now (will be committed later)
-                s_new = float(s_current) - float(qty)
-                upd_s_sql = 'UPDATE `stock` SET amount = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s'
-                cur.execute(upd_s_sql, (s_new, s_stock_id))
+                if is_rice_transaction:
+                    # For rice transactions, check rice_stock table
+                    sel_s_sql = 'SELECT id, quantity FROM `rice_stock` WHERE miller_id = %s AND paddy_type = %s FOR UPDATE'
+                    cur.execute(sel_s_sql, (str(from_val), ttype))
+                    srow = cur.fetchone()
+                    if not srow:
+                        # no stock row -> insufficient
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+                        cur.close()
+                        conn.close()
+                        return jsonify({'ok': False, 'error': 'Insufficient rice stock: sender has no rice stock for this type'}), 400
+                    s_stock_id, s_current = srow[0], srow[1] if srow[1] is not None else 0
+                    if float(s_current) < float(qty):
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+                        cur.close()
+                        conn.close()
+                        return jsonify({'ok': False, 'error': 'Insufficient rice stock: sender balance is lower than requested quantity'}), 400
+                    # deduct from rice_stock now (will be committed later)
+                    s_new = float(s_current) - float(qty)
+                    upd_s_sql = 'UPDATE `rice_stock` SET quantity = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s'
+                    cur.execute(upd_s_sql, (s_new, s_stock_id))
+                else:
+                    # For paddy transactions, check stock table
+                    sel_s_sql = 'SELECT id, amount FROM `stock` WHERE user_id = %s AND `type` = %s FOR UPDATE'
+                    cur.execute(sel_s_sql, (str(from_val), ttype))
+                    srow = cur.fetchone()
+                    if not srow:
+                        # no stock row -> insufficient
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+                        cur.close()
+                        conn.close()
+                        return jsonify({'ok': False, 'error': 'Insufficient stock: sender has no stock for this paddy type'}), 400
+                    s_stock_id, s_current = srow[0], srow[1] if srow[1] is not None else 0
+                    if float(s_current) < float(qty):
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+                        cur.close()
+                        conn.close()
+                        return jsonify({'ok': False, 'error': 'Insufficient stock: sender balance is lower than requested quantity'}), 400
+                    # deduct from stock now (will be committed later)
+                    s_new = float(s_current) - float(qty)
+                    upd_s_sql = 'UPDATE `stock` SET amount = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s'
+                    cur.execute(upd_s_sql, (s_new, s_stock_id))
 
         except mysql.connector.Error as e:
             try:
@@ -819,18 +855,35 @@ def api_add_transaction():
             return jsonify({'ok': False, 'error': 'Failed checking/deducting sender stock: ' + str(e)}), 500
 
         # Update recipient stock: if a row exists for (to_val, ttype) increment amount, else insert
+        # For rice transactions, update rice_stock table for recipient
+        # For paddy transactions, update the stock table
         try:
-            sel_sql = 'SELECT id, amount FROM `stock` WHERE user_id = %s AND `type` = %s FOR UPDATE'
-            cur.execute(sel_sql, (str(to_val), ttype))
-            row = cur.fetchone()
-            if row:
-                stock_id, current_amount = row[0], row[1] if row[1] is not None else 0
-                new_amount = float(current_amount) + float(qty)
-                upd_sql = 'UPDATE `stock` SET amount = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s'
-                cur.execute(upd_sql, (new_amount, stock_id))
+            if is_rice_transaction:
+                # For rice transactions, update recipient rice_stock table
+                sel_sql = 'SELECT id, quantity FROM `rice_stock` WHERE miller_id = %s AND paddy_type = %s FOR UPDATE'
+                cur.execute(sel_sql, (str(to_val), ttype))
+                row = cur.fetchone()
+                if row:
+                    stock_id, current_amount = row[0], row[1] if row[1] is not None else 0
+                    new_amount = float(current_amount) + float(qty)
+                    upd_sql = 'UPDATE `rice_stock` SET quantity = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s'
+                    cur.execute(upd_sql, (new_amount, stock_id))
+                else:
+                    ins_sql = 'INSERT INTO `rice_stock` (miller_id, paddy_type, quantity) VALUES (%s, %s, %s)'
+                    cur.execute(ins_sql, (str(to_val), ttype, qty))
             else:
-                ins_sql = 'INSERT INTO `stock` (user_id, `type`, amount) VALUES (%s, %s, %s)'
-                cur.execute(ins_sql, (str(to_val), ttype, qty))
+                # For paddy transactions, update recipient stock table
+                sel_sql = 'SELECT id, amount FROM `stock` WHERE user_id = %s AND `type` = %s FOR UPDATE'
+                cur.execute(sel_sql, (str(to_val), ttype))
+                row = cur.fetchone()
+                if row:
+                    stock_id, current_amount = row[0], row[1] if row[1] is not None else 0
+                    new_amount = float(current_amount) + float(qty)
+                    upd_sql = 'UPDATE `stock` SET amount = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s'
+                    cur.execute(upd_sql, (new_amount, stock_id))
+                else:
+                    ins_sql = 'INSERT INTO `stock` (user_id, `type`, amount) VALUES (%s, %s, %s)'
+                    cur.execute(ins_sql, (str(to_val), ttype, qty))
         except mysql.connector.Error as e:
             try:
                 conn.rollback()
@@ -847,11 +900,6 @@ def api_add_transaction():
             try:
                 # Convert quantity to int for blockchain (assuming kg)
                 qty_int = int(float(qty))
-                
-                # Determine if this is a rice transaction (sender is Miller or PMB selling rice)
-                is_rice_transaction = isinstance(sender_type, str) and (
-                    'miller' in sender_type.lower() or 'pmb' in sender_type.lower()
-                )
                 
                 if is_rice_transaction:
                     # Use rice transaction blockchain function
