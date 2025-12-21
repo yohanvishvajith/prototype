@@ -3,23 +3,67 @@ import json
 import os
 
 # --- Configuration ---
-RPC_URL = "http://127.0.0.1:8545"  # Ganache or Hardhat
-CONTRACT_ADDRESS = Web3.to_checksum_address("0x5FbDB2315678afecb367f032d93F642f64180aa3")
+# Two separate RPC URLs for two independent blockchains
+ACCOUNTS_RPC_URL = "http://127.0.0.1:8545"  # UserAccounts blockchain
+OPERATIONS_RPC_URL = "http://127.0.0.1:8546"  # Operations blockchain
+
 PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 WALLET_ADDRESS = Web3.to_checksum_address("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266")
 
-# --- Connect to Blockchain ---
-web3 = Web3(Web3.HTTPProvider(RPC_URL))
-print("Connected:", web3.is_connected())
+# --- Connect to UserAccounts Blockchain ---
+web3_accounts = Web3(Web3.HTTPProvider(ACCOUNTS_RPC_URL))
+print("UserAccounts Blockchain Connected:", web3_accounts.is_connected())
 
-# --- Load ABI ---
-with open("abi.json") as f:
-    abi = json.load(f)
+# --- Connect to Operations Blockchain ---
+web3_operations = Web3(Web3.HTTPProvider(OPERATIONS_RPC_URL))
+print("Operations Blockchain Connected:", web3_operations.is_connected())
 
-# --- Create Contract Instance ---
-contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=abi)
+# --- Load UserAccounts ABI ---
+with open("user-accounts-abi.json") as f:
+    user_accounts_abi = json.load(f)
 
-# --- Function to Add Farmer ---
+# Load UserAccounts contract address
+try:
+    with open("user-accounts-abi-address.json") as f:
+        user_accounts_address = json.load(f)["address"]
+except FileNotFoundError:
+    user_accounts_address = "0x5FbDB2315678afecb367f032d93F642f64180aa3"  # default
+    print("Warning: user-accounts-abi-address.json not found, using default address")
+
+user_accounts_contract = web3_accounts.eth.contract(
+    address=Web3.to_checksum_address(user_accounts_address),
+    abi=user_accounts_abi
+)
+
+# --- Load Operations ABI ---
+with open("operations-abi.json") as f:
+    operations_abi = json.load(f)
+
+# Load Operations contract address
+try:
+    with open("operations-abi-address.json") as f:
+        operations_address = json.load(f)["address"]
+except FileNotFoundError:
+    operations_address = "0x5FbDB2315678afecb367f032d93F642f64180aa3"  # default
+    print("Warning: operations-abi-address.json not found, using default address")
+
+operations_contract = web3_operations.eth.contract(
+    address=Web3.to_checksum_address(operations_address),
+    abi=operations_abi
+)
+
+print(f"UserAccounts Contract: {user_accounts_address}")
+print(f"Operations Contract: {operations_address}")
+
+# Legacy compatibility - Keep web3 and contract references for backward compatibility
+web3 = web3_accounts  # Default to accounts blockchain
+contract = user_accounts_contract  # Default to user accounts contract
+
+
+# ========================================
+# FARMER FUNCTIONS
+# ========================================
+
 def add_farmer(
     farmer_id: str,
     nic: str,
@@ -30,7 +74,7 @@ def add_farmer(
     total_paddy_area: int,
     value_eth: float = 0.0,
 ):
-    # Build the struct tuple in the same order as FarmerInput in the Solidity contract
+    """Register a farmer on the blockchain."""
     farmer_input = (
         farmer_id,
         nic,
@@ -41,273 +85,76 @@ def add_farmer(
         total_paddy_area,
     )
 
-    # Convert provided ether value to wei
-    value = web3.to_wei(value_eth, 'ether')
+    value = web3_accounts.to_wei(value_eth, 'ether')
 
-    # Optional: simulate the call locally to detect reverts before sending a transaction
     try:
-        # Simulate the call locally to detect reverts before sending a transaction
-        sim = contract.functions.registerFarmer(farmer_input).call({
+        user_accounts_contract.functions.registerFarmer(farmer_input).call({
             'from': WALLET_ADDRESS,
             'value': value
         })
         print("Call simulation succeeded (no revert).")
     except Exception as e:
         print("Call simulation reverted or failed:", e)
-        return
+        return None
 
-    # Create transaction (include value if you want to send ETH with the call)
-    tx = contract.functions.registerFarmer(farmer_input).build_transaction({
+    tx = user_accounts_contract.functions.registerFarmer(farmer_input).build_transaction({
         'from': WALLET_ADDRESS,
-        'nonce': web3.eth.get_transaction_count(WALLET_ADDRESS),
+        'nonce': web3_accounts.eth.get_transaction_count(WALLET_ADDRESS),
         'gas': 2000000,
-        'gasPrice': web3.to_wei('20', 'gwei'),
+        'gasPrice': web3_accounts.to_wei('20', 'gwei'),
         'value': value
     })
 
-    # Sign transaction
-    signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-    tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    signed_tx = web3_accounts.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_accounts.eth.send_raw_transaction(signed_tx.raw_transaction)
     print("Transaction sent:", tx_hash.hex())
 
-    # Wait for confirmation
-    receipt = web3.eth.wait_for_transaction_receipt(tx_hash)
+    receipt = web3_accounts.eth.wait_for_transaction_receipt(tx_hash)
     print("Transaction mined! Block number:", receipt.blockNumber)
-
-# --- Function to View Farmer ---
-def view_farmer(farmer_id):
-    farmer = contract.functions.getFarmer(farmer_id).call()
-    print("\n--- Farmer Data ---")
-    print("ID:", farmer[0])
-    print("NIC:", farmer[1])
-    print("Full Name:", farmer[2])
-    print("Address:", farmer[3])
-    print("District:", farmer[4])
-    print("Contact:", farmer[5])
-    print("Total Paddy Field Area:", farmer[6])
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
 
 
-def view_all_farmers(from_block: int = 0):
-    """Read past FarmerRegistered events starting at `from_block` and print each farmer.
-
-    This uses the FarmerRegistered event emitted by the contract when a farmer is registered.
-    Because the contract stores farmers in a mapping and doesn't provide an index/list function,
-    we must enumerate registered farmer IDs from events.
-    """
-    # First, try the on-chain helper that returns all farmers (added in Storage.sol)
+def view_farmer(farmer_id: str):
+    """View a farmer by ID."""
     try:
-        farmers = contract.functions.getAllFarmers().call()
-        if farmers and len(farmers) > 0:
-            print("\n--- All Registered Farmers (on-chain) ---")
-            for f in farmers:
-                # f is a tuple matching the Farmer struct
-                print("\nID:", f[0])
-                print("NIC:", f[1])
-                print("Full Name:", f[2])
-                print("Address:", f[3])
-                print("District:", f[4])
-                print("Contact:", f[5])
-                print("Total Paddy Field Area:", f[6])
-            return
-        else:
-            print("getAllFarmers returned no entries; falling back to event scan.")
+        farmer = user_accounts_contract.functions.getFarmer(farmer_id).call()
+        print("\n--- Farmer Data ---")
+        print("ID:", farmer[0])
+        print("NIC:", farmer[1])
+        print("Full Name:", farmer[2])
+        print("Address:", farmer[3])
+        print("District:", farmer[4])
+        print("Contact:", farmer[5])
+        print("Total Paddy Field Area:", farmer[6])
+        return farmer
     except Exception as e:
-        # If the function doesn't exist or call fails, fallback to scanning events
-        print("getAllFarmers on-chain call failed or not available, falling back to events:", e)
+        print("Error fetching farmer:", e)
+        return None
 
-    # Fallback: enumerate FarmerRegistered events (off-chain)
+
+def view_all_farmers():
+    """View all registered farmers."""
     try:
-        # use the web3.py parameter name 'from_block'
-        event_filter = contract.events.FarmerRegistered.create_filter(from_block=from_block)
-        entries = event_filter.get_all_entries()
-    except Exception:
-        print("Falling back to eth.get_logs for FarmerRegistered events")
-        event_abi = next((a for a in abi if a.get('name') == 'FarmerRegistered' and a.get('type') == 'event'), None)
-        if event_abi is None:
-            print("FarmerRegistered event ABI not found")
-            return
-        # topic for the event signature
-        topic = web3.keccak(text=f"{event_abi['name']}({','.join(i['type'] for i in event_abi['inputs'])})").hex()
-        logs = web3.eth.get_logs({
-            'fromBlock': from_block,
-            'toBlock': 'latest',
-            'address': CONTRACT_ADDRESS,
-            'topics': [topic]
-        })
-        # use process_log (web3.py naming) to decode each log
-        entries = [contract.events.FarmerRegistered().process_log(log) for log in logs]
-
-    if not entries:
-        print("No FarmerRegistered events found (no farmers registered yet).")
-        return
-
-    seen = set()
-    print("\n--- All Registered Farmers (events) ---")
-    for ev in entries:
-        farmer_id = ev['args']['id']
-        if farmer_id in seen:
-            continue
-        seen.add(farmer_id)
-        try:
-            farmer = contract.functions.getFarmer(farmer_id).call()
-            print("\nID:", farmer[0])
-            print("NIC:", farmer[1])
-            print("Full Name:", farmer[2])
-            print("Address:", farmer[3])
-            print("District:", farmer[4])
-            print("Contact:", farmer[5])
-            print("Total Paddy Field Area:", farmer[6])
-        except Exception as e:
-            print(f"Failed to read farmer {farmer_id}:", e)
-
-
-def view_miller(miller_id: str):
-    """Call getMiller and print a single miller."""
-    miller = contract.functions.getMiller(miller_id).call()
-    print("\n--- Miller Data ---")
-    print("ID:", miller[0])
-    print("Company Register Number:", miller[1])
-    print("Company Name:", miller[2])
-    print("Address:", miller[3])
-    print("District:", miller[4])
-    print("Contact:", miller[5])
-
-
-def view_all_millers(from_block: int = 0):
-    """List all millers using on-chain helper or by scanning MillerRegistered events."""
-    # Try on-chain helper first
-    try:
-        millers = contract.functions.getAllMillers().call()
-        if millers and len(millers) > 0:
-            print("\n--- All Registered Millers (on-chain) ---")
-            for m in millers:
-                print("\nID:", m[0])
-                print("Company Register Number:", m[1])
-                print("Company Name:", m[2])
-                print("Address:", m[3])
-                print("District:", m[4])
-                print("Contact:", m[5])
-            return
-        else:
-            print("getAllMillers returned no entries; falling back to event scan.")
+        farmers = user_accounts_contract.functions.getAllFarmers().call()
+        print("\n--- All Registered Farmers ---")
+        for f in farmers:
+            print("\nID:", f[0])
+            print("NIC:", f[1])
+            print("Full Name:", f[2])
+            print("Address:", f[3])
+            print("District:", f[4])
+            print("Contact:", f[5])
+            print("Total Paddy Field Area:", f[6])
+        return farmers
     except Exception as e:
-        print("getAllMillers on-chain call failed or not available, falling back to events:", e)
-
-    # Fallback: enumerate MillerRegistered events
-    try:
-        event_filter = contract.events.MillerRegistered.create_filter(from_block=from_block)
-        entries = event_filter.get_all_entries()
-    except Exception:
-        print("Falling back to eth.get_logs for MillerRegistered events")
-        event_abi = next((a for a in abi if a.get('name') == 'MillerRegistered' and a.get('type') == 'event'), None)
-        if event_abi is None:
-            print("MillerRegistered event ABI not found")
-            return
-        topic = web3.keccak(text=f"{event_abi['name']}({','.join(i['type'] for i in event_abi['inputs'])})").hex()
-        logs = web3.eth.get_logs({
-            'fromBlock': from_block,
-            'toBlock': 'latest',
-            'address': CONTRACT_ADDRESS,
-            'topics': [topic]
-        })
-        entries = [contract.events.MillerRegistered().process_log(log) for log in logs]
-
-    if not entries:
-        print("No MillerRegistered events found (no millers registered yet).")
-        return
-
-    seen = set()
-    print("\n--- All Registered Millers (events) ---")
-    for ev in entries:
-        miller_id = ev['args']['id']
-        if miller_id in seen:
-            continue
-        seen.add(miller_id)
-        try:
-            m = contract.functions.getMiller(miller_id).call()
-            print("\nID:", m[0])
-            print("Company Register Number:", m[1])
-            print("Company Name:", m[2])
-            print("Address:", m[3])
-            print("District:", m[4])
-            print("Contact:", m[5])
-        except Exception as e:
-            print(f"Failed to read miller {miller_id}:", e)
+        print("Error fetching farmers:", e)
+        return []
 
 
-def view_collector(collector_id: str):
-    """Call getCollector and print a single collector."""
-    collector = contract.functions.getCollector(collector_id).call()
-    print("\n--- Collector Data ---")
-    print("ID:", collector[0])
-    print("NIC:", collector[1])
-    print("Full Name:", collector[2])
-    print("Address:", collector[3])
-    print("District:", collector[4])
-    print("Contact:", collector[5])
-
-
-def view_all_collectors(from_block: int = 0):
-    """List all collectors using on-chain helper or by scanning CollectorRegistered events."""
-    # Try on-chain helper first
-    try:
-        collectors_list = contract.functions.getAllCollectors().call()
-        if collectors_list and len(collectors_list) > 0:
-            print("\n--- All Registered Collectors (on-chain) ---")
-            for c in collectors_list:
-                print("\nID:", c[0])
-                print("NIC:", c[1])
-                print("Full Name:", c[2])
-                print("Address:", c[3])
-                print("District:", c[4])
-                print("Contact:", c[5])
-            return
-        else:
-            print("getAllCollectors returned no entries; falling back to event scan.")
-    except Exception as e:
-        print("getAllCollectors on-chain call failed or not available, falling back to events:", e)
-
-    # Fallback: enumerate CollectorRegistered events
-    try:
-        event_filter = contract.events.CollectorRegistered.create_filter(from_block=from_block)
-        entries = event_filter.get_all_entries()
-    except Exception:
-        print("Falling back to eth.get_logs for CollectorRegistered events")
-        event_abi = next((a for a in abi if a.get('name') == 'CollectorRegistered' and a.get('type') == 'event'), None)
-        if event_abi is None:
-            print("CollectorRegistered event ABI not found")
-            return
-        topic = web3.keccak(text=f"{event_abi['name']}({','.join(i['type'] for i in event_abi['inputs'])})").hex()
-        logs = web3.eth.get_logs({
-            'fromBlock': from_block,
-            'toBlock': 'latest',
-            'address': CONTRACT_ADDRESS,
-            'topics': [topic]
-        })
-        entries = [contract.events.CollectorRegistered().process_log(log) for log in logs]
-
-    if not entries:
-        print("No CollectorRegistered events found (no collectors registered yet).")
-        return
-
-    seen = set()
-    print("\n--- All Registered Collectors (events) ---")
-    for ev in entries:
-        collector_id = ev['args']['id']
-        if collector_id in seen:
-            continue
-        seen.add(collector_id)
-        try:
-            c = contract.functions.getCollector(collector_id).call()
-            print("\nID:", c[0])
-            print("NIC:", c[1])
-            print("Full Name:", c[2])
-            print("Address:", c[3])
-            print("District:", c[4])
-            print("Contact:", c[5])
-        except Exception as e:
-            print(f"Failed to read collector {collector_id}:", e)
-
+# ========================================
+# COLLECTOR FUNCTIONS
+# ========================================
 
 def add_collector(
     collector_id: str,
@@ -318,7 +165,7 @@ def add_collector(
     contact_number: str,
     value_eth: float = 0.0,
 ):
-    """Register a Collector using the contract's registerCollector function."""
+    """Register a collector on the blockchain."""
     collector_input = (
         collector_id,
         nic,
@@ -328,111 +175,73 @@ def add_collector(
         contact_number,
     )
 
-    value = web3.to_wei(value_eth, 'ether')
+    value = web3_accounts.to_wei(value_eth, 'ether')
 
     try:
-        # simulate call
-        contract.functions.registerCollector(collector_input).call({
+        user_accounts_contract.functions.registerCollector(collector_input).call({
             'from': WALLET_ADDRESS,
             'value': value,
         })
         print("Call simulation succeeded (no revert).")
     except Exception as e:
         print("Call simulation reverted or failed:", e)
-        return
+        return None
 
-    tx = contract.functions.registerCollector(collector_input).build_transaction({
+    tx = user_accounts_contract.functions.registerCollector(collector_input).build_transaction({
         'from': WALLET_ADDRESS,
-        'nonce': web3.eth.get_transaction_count(WALLET_ADDRESS),
+        'nonce': web3_accounts.eth.get_transaction_count(WALLET_ADDRESS),
         'gas': 2000000,
-        'gasPrice': web3.to_wei('20', 'gwei'),
+        'gasPrice': web3_accounts.to_wei('20', 'gwei'),
         'value': value,
     })
 
-    signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-    tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    signed_tx = web3_accounts.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_accounts.eth.send_raw_transaction(signed_tx.raw_transaction)
     print("Transaction sent:", tx_hash.hex())
-    receipt = web3.eth.wait_for_transaction_receipt(tx_hash)
+    receipt = web3_accounts.eth.wait_for_transaction_receipt(tx_hash)
     print("Transaction mined! Block number:", receipt.blockNumber)
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
 
 
-def prompt_add_collector_interactive():
-    print("\nEnter new collector details:")
-    collector_id = input("ID: ").strip()
-    nic = input("NIC: ").strip()
-    full_name = input("Full name: ").strip()
-    home_address = input("Home address: ").strip()
-    district = input("District: ").strip()
-    contact_number = input("Contact number: ").strip()
-    while True:
-        value_eth_s = input("Value to send with tx in ETH (default 0): ").strip()
-        if value_eth_s == "":
-            value_eth = 0.0
-            break
-        try:
-            value_eth = float(value_eth_s)
-            break
-        except ValueError:
-            print("Please enter a numeric value for ETH (e.g. 0 or 0.01).")
+def view_collector(collector_id: str):
+    """View a collector by ID."""
+    try:
+        collector = user_accounts_contract.functions.getCollector(collector_id).call()
+        print("\n--- Collector Data ---")
+        print("ID:", collector[0])
+        print("NIC:", collector[1])
+        print("Full Name:", collector[2])
+        print("Address:", collector[3])
+        print("District:", collector[4])
+        print("Contact:", collector[5])
+        return collector
+    except Exception as e:
+        print("Error fetching collector:", e)
+        return None
 
-    confirm = input(f"Register collector {collector_id} (y/N)? ").strip().lower()
-    if confirm != "y":
-        print("Cancelled")
-        return
 
-    add_collector(
-        collector_id,
-        nic,
-        full_name,
-        home_address,
-        district,
-        contact_number,
-        value_eth,
-    )
+def view_all_collectors():
+    """View all registered collectors."""
+    try:
+        collectors = user_accounts_contract.functions.getAllCollectors().call()
+        print("\n--- All Registered Collectors ---")
+        for c in collectors:
+            print("\nID:", c[0])
+            print("NIC:", c[1])
+            print("Full Name:", c[2])
+            print("Address:", c[3])
+            print("District:", c[4])
+            print("Contact:", c[5])
+        return collectors
+    except Exception as e:
+        print("Error fetching collectors:", e)
+        return []
 
-# --- Interactive menu ---
-def prompt_add_farmer_interactive():
-    print("\nEnter new farmer details:")
-    farmer_id = input("ID: ").strip()
-    nic = input("NIC: ").strip()
-    full_name = input("Full name: ").strip()
-    home_address = input("Home address: ").strip()
-    district = input("District: ").strip()
-    contact_number = input("Contact number: ").strip()
-    while True:
-        total_paddy_area_s = input("Total paddy field area (integer): ").strip()
-        try:
-            total_paddy_area = int(total_paddy_area_s)
-            break
-        except ValueError:
-            print("Please enter a valid integer for total paddy field area.")
-    while True:
-        value_eth_s = input("Value to send with tx in ETH (default 0): ").strip()
-        if value_eth_s == "":
-            value_eth = 0.0
-            break
-        try:
-            value_eth = float(value_eth_s)
-            break
-        except ValueError:
-            print("Please enter a numeric value for ETH (e.g. 0 or 0.01).")
 
-    confirm = input(f"Register farmer {farmer_id} (y/N)? ").strip().lower()
-    if confirm != "y":
-        print("Cancelled")
-        return
-
-    add_farmer(
-        farmer_id,
-        nic,
-        full_name,
-        home_address,
-        district,
-        contact_number,
-        total_paddy_area,
-        value_eth,
-    )
-
+# ========================================
+# MILLER FUNCTIONS
+# ========================================
 
 def add_miller(
     miller_id: str,
@@ -443,7 +252,7 @@ def add_miller(
     contact_number: str,
     value_eth: float = 0.0,
 ):
-    """Register a Miller using the contract's registerMiller function."""
+    """Register a miller on the blockchain."""
     miller_input = (
         miller_id,
         company_register_number,
@@ -453,149 +262,696 @@ def add_miller(
         contact_number,
     )
 
-    value = web3.to_wei(value_eth, 'ether')
+    value = web3_accounts.to_wei(value_eth, 'ether')
 
     try:
-        # simulate call
-        contract.functions.registerMiller(miller_input).call({
+        user_accounts_contract.functions.registerMiller(miller_input).call({
             'from': WALLET_ADDRESS,
             'value': value,
         })
         print("Call simulation succeeded (no revert).")
     except Exception as e:
         print("Call simulation reverted or failed:", e)
-        return
+        return None
 
-    tx = contract.functions.registerMiller(miller_input).build_transaction({
+    tx = user_accounts_contract.functions.registerMiller(miller_input).build_transaction({
         'from': WALLET_ADDRESS,
-        'nonce': web3.eth.get_transaction_count(WALLET_ADDRESS),
+        'nonce': web3_accounts.eth.get_transaction_count(WALLET_ADDRESS),
         'gas': 2000000,
-        'gasPrice': web3.to_wei('20', 'gwei'),
+        'gasPrice': web3_accounts.to_wei('20', 'gwei'),
         'value': value,
     })
 
-    signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-    tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    signed_tx = web3_accounts.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_accounts.eth.send_raw_transaction(signed_tx.raw_transaction)
     print("Transaction sent:", tx_hash.hex())
-    receipt = web3.eth.wait_for_transaction_receipt(tx_hash)
+    receipt = web3_accounts.eth.wait_for_transaction_receipt(tx_hash)
     print("Transaction mined! Block number:", receipt.blockNumber)
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
 
 
-def prompt_add_miller_interactive():
-    print("\nEnter new miller details:")
-    miller_id = input("ID: ").strip()
-    company_register_number = input("Company register number: ").strip()
-    company_name = input("Company name: ").strip()
-    home_address = input("Home address: ").strip()
-    district = input("District: ").strip()
-    contact_number = input("Contact number: ").strip()
-    while True:
-        value_eth_s = input("Value to send with tx in ETH (default 0): ").strip()
-        if value_eth_s == "":
-            value_eth = 0.0
-            break
-        try:
-            value_eth = float(value_eth_s)
-            break
-        except ValueError:
-            print("Please enter a numeric value for ETH (e.g. 0 or 0.01).")
+def view_miller(miller_id: str):
+    """View a miller by ID."""
+    try:
+        miller = user_accounts_contract.functions.getMiller(miller_id).call()
+        print("\n--- Miller Data ---")
+        print("ID:", miller[0])
+        print("Company Register Number:", miller[1])
+        print("Company Name:", miller[2])
+        print("Address:", miller[3])
+        print("District:", miller[4])
+        print("Contact:", miller[5])
+        return miller
+    except Exception as e:
+        print("Error fetching miller:", e)
+        return None
 
-    confirm = input(f"Register miller {miller_id} (y/N)? ").strip().lower()
-    if confirm != "y":
-        print("Cancelled")
-        return
 
-    add_miller(
-        miller_id,
+def view_all_millers():
+    """View all registered millers."""
+    try:
+        millers = user_accounts_contract.functions.getAllMillers().call()
+        print("\n--- All Registered Millers ---")
+        for m in millers:
+            print("\nID:", m[0])
+            print("Company Register Number:", m[1])
+            print("Company Name:", m[2])
+            print("Address:", m[3])
+            print("District:", m[4])
+            print("Contact:", m[5])
+        return millers
+    except Exception as e:
+        print("Error fetching millers:", e)
+        return []
+
+
+# ========================================
+# WHOLESALER FUNCTIONS
+# ========================================
+
+def add_wholesaler(
+    wholesaler_id: str,
+    company_register_number: str,
+    company_name: str,
+    home_address: str,
+    district: str,
+    contact_number: str,
+    value_eth: float = 0.0,
+):
+    """Register a wholesaler on the blockchain."""
+    wholesaler_input = (
+        wholesaler_id,
         company_register_number,
         company_name,
         home_address,
         district,
         contact_number,
-        value_eth,
     )
 
+    value = web3_accounts.to_wei(value_eth, 'ether')
 
-def menu_loop():
     try:
-        while True:
-            print("\n=== Storage Interactor ===")
-            print("1) Add farmer")
-            print("2) View all farmers")
-            print("3) View farmer by ID")
-            print("4) Add miller")
-            print("5) View all millers")
-            print("6) View miller by ID")
-            print("7) View all collectors")
-            print("8) View collector by ID")
-            print("9) Add collector")
-            print("0) Exit")
-            choice = input("Choose an option: ").strip()
-            if choice == "1":
-                prompt_add_farmer_interactive()
-            elif choice == "2":
-                from_block_s = input("From block (enter for 0): ").strip()
-                try:
-                    from_block = int(from_block_s) if from_block_s != "" else 0
-                except ValueError:
-                    print("Invalid block number, using 0")
-                    from_block = 0
-                view_all_farmers(from_block)
-            elif choice == "3":
-                fid = input("Farmer ID: ").strip()
-                if fid:
-                    try:
-                        view_farmer(fid)
-                    except Exception as e:
-                        print("Failed to view farmer:", e)
-                else:
-                    print("No ID entered")
-            elif choice == "4":
-                prompt_add_miller_interactive()
-            elif choice == "5":
-                from_block_s = input("From block (enter for 0): ").strip()
-                try:
-                    from_block = int(from_block_s) if from_block_s != "" else 0
-                except ValueError:
-                    print("Invalid block number, using 0")
-                    from_block = 0
-                view_all_millers(from_block)
-            elif choice == "6":
-                mid = input("Miller ID: ").strip()
-                if mid:
-                    try:
-                        view_miller(mid)
-                    except Exception as e:
-                        print("Failed to view miller:", e)
-                else:
-                    print("No ID entered")
-            elif choice == "7":
-                from_block_s = input("From block (enter for 0): ").strip()
-                try:
-                    from_block = int(from_block_s) if from_block_s != "" else 0
-                except ValueError:
-                    print("Invalid block number, using 0")
-                    from_block = 0
-                view_all_collectors(from_block)
-            elif choice == "8":
-                cid = input("Collector ID: ").strip()
-                if cid:
-                    try:
-                        view_collector(cid)
-                    except Exception as e:
-                        print("Failed to view collector:", e)
-                else:
-                    print("No ID entered")
-            elif choice == "9":
-                prompt_add_collector_interactive()
-            elif choice == "0" or choice.lower() in ("q", "exit"):
-                print("Bye")
-                break
-            else:
-                print("Invalid choice")
-    except KeyboardInterrupt:
-        print("\nInterrupted — exiting.")
+        user_accounts_contract.functions.registerWholesaler(wholesaler_input).call({
+            'from': WALLET_ADDRESS,
+            'value': value,
+        })
+        print("Call simulation succeeded (no revert).")
+    except Exception as e:
+        print("Call simulation reverted or failed:", e)
+        return None
+
+    tx = user_accounts_contract.functions.registerWholesaler(wholesaler_input).build_transaction({
+        'from': WALLET_ADDRESS,
+        'nonce': web3_accounts.eth.get_transaction_count(WALLET_ADDRESS),
+        'gas': 2000000,
+        'gasPrice': web3_accounts.to_wei('20', 'gwei'),
+        'value': value,
+    })
+
+    signed_tx = web3_accounts.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_accounts.eth.send_raw_transaction(signed_tx.raw_transaction)
+    print("Transaction sent:", tx_hash.hex())
+    receipt = web3_accounts.eth.wait_for_transaction_receipt(tx_hash)
+    print("Transaction mined! Block number:", receipt.blockNumber)
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
+
+
+def view_all_wholesalers():
+    """View all registered wholesalers."""
+    try:
+        wholesalers = user_accounts_contract.functions.getAllWholesalers().call()
+        print("\n--- All Registered Wholesalers ---")
+        for w in wholesalers:
+            print("\nID:", w[0])
+            print("Company Register Number:", w[1])
+            print("Company Name:", w[2])
+            print("Address:", w[3])
+            print("District:", w[4])
+            print("Contact:", w[5])
+        return wholesalers
+    except Exception as e:
+        print("Error fetching wholesalers:", e)
+        return []
+
+
+# ========================================
+# RETAILER FUNCTIONS
+# ========================================
+
+def add_retailer(
+    retailer_id: str,
+    name: str,
+    home_address: str,
+    district: str,
+    contact_number: str,
+    value_eth: float = 0.0,
+):
+    """Register a retailer on the blockchain."""
+    retailer_input = (
+        retailer_id,
+        name,
+        home_address,
+        district,
+        contact_number,
+    )
+
+    value = web3_accounts.to_wei(value_eth, 'ether')
+
+    try:
+        user_accounts_contract.functions.registerRetailer(retailer_input).call({
+            'from': WALLET_ADDRESS,
+            'value': value,
+        })
+        print("Call simulation succeeded (no revert).")
+    except Exception as e:
+        print("Call simulation reverted or failed:", e)
+        return None
+
+    tx = user_accounts_contract.functions.registerRetailer(retailer_input).build_transaction({
+        'from': WALLET_ADDRESS,
+        'nonce': web3_accounts.eth.get_transaction_count(WALLET_ADDRESS),
+        'gas': 2000000,
+        'gasPrice': web3_accounts.to_wei('20', 'gwei'),
+        'value': value,
+    })
+
+    signed_tx = web3_accounts.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_accounts.eth.send_raw_transaction(signed_tx.raw_transaction)
+    print("Transaction sent:", tx_hash.hex())
+    receipt = web3_accounts.eth.wait_for_transaction_receipt(tx_hash)
+    print("Transaction mined! Block number:", receipt.blockNumber)
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
+
+
+def view_all_retailers():
+    """View all registered retailers."""
+    try:
+        retailers = user_accounts_contract.functions.getAllRetailers().call()
+        print("\n--- All Registered Retailers ---")
+        for r in retailers:
+            print("\nID:", r[0])
+            print("Name:", r[1])
+            print("Address:", r[2])
+            print("District:", r[3])
+            print("Contact:", r[4])
+        return retailers
+    except Exception as e:
+        print("Error fetching retailers:", e)
+        return []
+
+
+# ========================================
+# BREWER (BEER) FUNCTIONS
+# ========================================
+
+def add_brewer(
+    brewer_id: str,
+    company_id: str,
+    name: str,
+    home_address: str,
+    district: str,
+    contact_number: str,
+    value_eth: float = 0.0,
+):
+    """Register a brewer on the blockchain."""
+    brewer_input = (
+        brewer_id,
+        company_id,
+        name,
+        home_address,
+        district,
+        contact_number,
+    )
+
+    value = web3_accounts.to_wei(value_eth, 'ether')
+
+    try:
+        user_accounts_contract.functions.registerBrewer(brewer_input).call({
+            'from': WALLET_ADDRESS,
+            'value': value,
+        })
+        print("Call simulation succeeded (no revert).")
+    except Exception as e:
+        print("Call simulation reverted or failed:", e)
+        return None
+
+    tx = user_accounts_contract.functions.registerBrewer(brewer_input).build_transaction({
+        'from': WALLET_ADDRESS,
+        'nonce': web3_accounts.eth.get_transaction_count(WALLET_ADDRESS),
+        'gas': 2000000,
+        'gasPrice': web3_accounts.to_wei('20', 'gwei'),
+        'value': value,
+    })
+
+    signed_tx = web3_accounts.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_accounts.eth.send_raw_transaction(signed_tx.raw_transaction)
+    print("Transaction sent:", tx_hash.hex())
+    receipt = web3_accounts.eth.wait_for_transaction_receipt(tx_hash)
+    print("Transaction mined! Block number:", receipt.blockNumber)
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
+
+
+def view_all_brewers():
+    """View all registered brewers."""
+    try:
+        brewers = user_accounts_contract.functions.getAllBrewers().call()
+        print("\n--- All Registered Brewers ---")
+        for b in brewers:
+            print("\nID:", b[0])
+            print("Company ID:", b[1])
+            print("Name:", b[2])
+            print("Address:", b[3])
+            print("District:", b[4])
+            print("Contact:", b[5])
+        return brewers
+    except Exception as e:
+        print("Error fetching brewers:", e)
+        return []
+
+
+# ========================================
+# ANIMAL FOOD FUNCTIONS
+# ========================================
+
+def add_animal_food(
+    animal_food_id: str,
+    company_id: str,
+    name: str,
+    home_address: str,
+    district: str,
+    contact_number: str,
+    value_eth: float = 0.0,
+):
+    """Register an animal food company on the blockchain."""
+    animal_food_input = (
+        animal_food_id,
+        company_id,
+        name,
+        home_address,
+        district,
+        contact_number,
+    )
+
+    value = web3_accounts.to_wei(value_eth, 'ether')
+
+    try:
+        user_accounts_contract.functions.registerAnimalFood(animal_food_input).call({
+            'from': WALLET_ADDRESS,
+            'value': value,
+        })
+        print("Call simulation succeeded (no revert).")
+    except Exception as e:
+        print("Call simulation reverted or failed:", e)
+        return None
+
+    tx = user_accounts_contract.functions.registerAnimalFood(animal_food_input).build_transaction({
+        'from': WALLET_ADDRESS,
+        'nonce': web3_accounts.eth.get_transaction_count(WALLET_ADDRESS),
+        'gas': 2000000,
+        'gasPrice': web3_accounts.to_wei('20', 'gwei'),
+        'value': value,
+    })
+
+    signed_tx = web3_accounts.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_accounts.eth.send_raw_transaction(signed_tx.raw_transaction)
+    print("Transaction sent:", tx_hash.hex())
+    receipt = web3_accounts.eth.wait_for_transaction_receipt(tx_hash)
+    print("Transaction mined! Block number:", receipt.blockNumber)
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
+
+
+def view_all_animal_foods():
+    """View all registered animal food companies."""
+    try:
+        animal_foods = user_accounts_contract.functions.getAllAnimalFoods().call()
+        print("\n--- All Registered Animal Food Companies ---")
+        for a in animal_foods:
+            print("\nID:", a[0])
+            print("Company ID:", a[1])
+            print("Name:", a[2])
+            print("Address:", a[3])
+            print("District:", a[4])
+            print("Contact:", a[5])
+        return animal_foods
+    except Exception as e:
+        print("Error fetching animal foods:", e)
+        return []
+
+
+# ========================================
+# EXPORTER FUNCTIONS
+# ========================================
+
+def add_exporter(
+    exporter_id: str,
+    company_id: str,
+    name: str,
+    home_address: str,
+    district: str,
+    contact_number: str,
+    value_eth: float = 0.0,
+):
+    """Register an exporter on the blockchain."""
+    exporter_input = (
+        exporter_id,
+        company_id,
+        name,
+        home_address,
+        district,
+        contact_number,
+    )
+
+    value = web3_accounts.to_wei(value_eth, 'ether')
+
+    try:
+        user_accounts_contract.functions.registerExporter(exporter_input).call({
+            'from': WALLET_ADDRESS,
+            'value': value,
+        })
+        print("Call simulation succeeded (no revert).")
+    except Exception as e:
+        print("Call simulation reverted or failed:", e)
+        return None
+
+    tx = user_accounts_contract.functions.registerExporter(exporter_input).build_transaction({
+        'from': WALLET_ADDRESS,
+        'nonce': web3_accounts.eth.get_transaction_count(WALLET_ADDRESS),
+        'gas': 2000000,
+        'gasPrice': web3_accounts.to_wei('20', 'gwei'),
+        'value': value,
+    })
+
+    signed_tx = web3_accounts.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_accounts.eth.send_raw_transaction(signed_tx.raw_transaction)
+    print("Transaction sent:", tx_hash.hex())
+    receipt = web3_accounts.eth.wait_for_transaction_receipt(tx_hash)
+    print("Transaction mined! Block number:", receipt.blockNumber)
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
+
+
+def view_all_exporters():
+    """View all registered exporters."""
+    try:
+        exporters = user_accounts_contract.functions.getAllExporters().call()
+        print("\n--- All Registered Exporters ---")
+        for e in exporters:
+            print("\nID:", e[0])
+            print("Company ID:", e[1])
+            print("Name:", e[2])
+            print("Address:", e[3])
+            print("District:", e[4])
+            print("Contact:", e[5])
+        return exporters
+    except Exception as e:
+        print("Error fetching exporters:", e)
+        return []
+
+
+# ========================================
+# TRANSACTION FUNCTIONS
+# ========================================
+
+def record_transaction(
+    from_party: str,
+    to_party: str,
+    product_type: str,
+    quantity: int,
+    value_eth: float = 0.0,
+):
+    """Record a transaction on the blockchain."""
+    value = web3_operations.to_wei(value_eth, 'ether')
+
+    try:
+        operations_contract.functions.recordTransaction(
+            from_party,
+            to_party,
+            product_type,
+            quantity
+        ).call({
+            'from': WALLET_ADDRESS,
+            'value': value,
+        })
+        print("Call simulation succeeded (no revert).")
+    except Exception as e:
+        print("Call simulation reverted or failed:", e)
+        return None
+
+    tx = operations_contract.functions.recordTransaction(
+        from_party,
+        to_party,
+        product_type,
+        quantity
+    ).build_transaction({
+        'from': WALLET_ADDRESS,
+        'nonce': web3_operations.eth.get_transaction_count(WALLET_ADDRESS),
+        'gas': 2000000,
+        'gasPrice': web3_operations.to_wei('20', 'gwei'),
+        'value': value,
+    })
+
+    signed_tx = web3_operations.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_operations.eth.send_raw_transaction(signed_tx.raw_transaction)
+    print("Transaction sent:", tx_hash.hex())
+    receipt = web3_operations.eth.wait_for_transaction_receipt(tx_hash)
+    print("Transaction mined! Block number:", receipt.blockNumber)
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
+
+
+def view_all_transactions():
+    """View all recorded transactions."""
+    try:
+        transactions = operations_contract.functions.getAllTransactions().call()
+        print("\n--- All Recorded Transactions ---")
+        for tx in transactions:
+            print("\nFrom:", tx[0])
+            print("To:", tx[1])
+            print("Product Type:", tx[2])
+            print("Quantity:", tx[3])
+            print("Timestamp:", tx[4])
+        return transactions
+    except Exception as e:
+        print("Error fetching transactions:", e)
+        return []
+
+
+# ========================================
+# DAMAGE RECORD FUNCTIONS
+# ========================================
+
+def record_damage(
+    user_id: str,
+    paddy_type: str,
+    quantity: int,
+    damage_date: int,
+    value_eth: float = 0.0,
+):
+    """Record damage on the blockchain."""
+    damage_input = (
+        user_id,
+        paddy_type,
+        quantity,
+        damage_date,
+    )
+
+    value = web3_operations.to_wei(value_eth, 'ether')
+
+    try:
+        operations_contract.functions.recordDamage(damage_input).call({
+            'from': WALLET_ADDRESS,
+            'value': value,
+        })
+        print("Call simulation succeeded (no revert).")
+    except Exception as e:
+        print("Call simulation reverted or failed:", e)
+        return None
+
+    tx = operations_contract.functions.recordDamage(damage_input).build_transaction({
+        'from': WALLET_ADDRESS,
+        'nonce': web3_operations.eth.get_transaction_count(WALLET_ADDRESS),
+        'gas': 2000000,
+        'gasPrice': web3_operations.to_wei('20', 'gwei'),
+        'value': value,
+    })
+
+    signed_tx = web3_operations.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_operations.eth.send_raw_transaction(signed_tx.raw_transaction)
+    print("Transaction sent:", tx_hash.hex())
+    receipt = web3_operations.eth.wait_for_transaction_receipt(tx_hash)
+    print("Transaction mined! Block number:", receipt.blockNumber)
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
+
+
+def view_all_damage_records():
+    """View all damage records."""
+    try:
+        damage_records = operations_contract.functions.getAllDamageRecords().call()
+        print("\n--- All Damage Records ---")
+        for dr in damage_records:
+            print("\nUser ID:", dr[0])
+            print("Paddy Type:", dr[1])
+            print("Quantity:", dr[2])
+            print("Damage Date:", dr[3])
+        return damage_records
+    except Exception as e:
+        print("Error fetching damage records:", e)
+        return []
+
+
+def record_milling(miller_id, paddy_type, input_qty, output_qty, date):
+    """Record milling operation on the blockchain and return the block hash."""
+    print("\n--- Recording Milling on Blockchain ---")
+    print(f"Miller ID: {miller_id}")
+    print(f"Paddy Type: {paddy_type}")
+    print(f"Input Qty: {input_qty}")
+    print(f"Output Qty: {output_qty}")
+    print(f"Date: {date}")
+
+    # Create milling input tuple
+    milling_input = (miller_id, paddy_type, input_qty, output_qty, date)
+    value = 0  # No ETH value sent
+
+    # Test call
+    try:
+        operations_contract.functions.recordMilling(milling_input).call({'from': WALLET_ADDRESS, 'value': value})
+        print("Call simulation succeeded (no revert).")
+    except Exception as e:
+        print("Call simulation reverted or failed:", e)
+        return None
+
+    tx = operations_contract.functions.recordMilling(milling_input).build_transaction({
+        'from': WALLET_ADDRESS,
+        'nonce': web3_operations.eth.get_transaction_count(WALLET_ADDRESS),
+        'gas': 2000000,
+        'gasPrice': web3_operations.to_wei('20', 'gwei'),
+        'value': value,
+    })
+
+    signed_tx = web3_operations.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_operations.eth.send_raw_transaction(signed_tx.raw_transaction)
+    print("Transaction sent:", tx_hash.hex())
+    receipt = web3_operations.eth.wait_for_transaction_receipt(tx_hash)
+    print("Transaction mined! Block number:", receipt.blockNumber)
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
+
+
+def view_all_milling_records():
+    """View all milling records."""
+    try:
+        milling_records = operations_contract.functions.getAllMillingRecords().call()
+        print("\n--- All Milling Records ---")
+        for mr in milling_records:
+            print("\nMiller ID:", mr[0])
+            print("Paddy Type:", mr[1])
+            print("Input Qty:", mr[2])
+            print("Output Qty:", mr[3])
+            print("Date:", mr[4])
+        return milling_records
+    except Exception as e:
+        print("Error fetching milling records:", e)
+        return []
+
+
+def record_rice_transaction(from_party, to_party, rice_type, quantity, price=0.0):
+    """Record a rice transaction on the blockchain and return the block hash."""
+    print("\n--- Recording Rice Transaction on Blockchain ---")
+    print(f"From: {from_party}")
+    print(f"To: {to_party}")
+    print(f"Rice Type: {rice_type}")
+    print(f"Quantity: {quantity}")
+    print(f"Price: {price}")
+
+    qty = int(quantity)
+    value = 0  # No ETH value sent
+
+    # Test call
+    try:
+        operations_contract.functions.recordRiceTransaction(from_party, to_party, rice_type, qty).call({'from': WALLET_ADDRESS, 'value': value})
+        print("Call simulation succeeded (no revert).")
+    except Exception as e:
+        print("Call simulation reverted or failed:", e)
+        return None
+
+    tx = operations_contract.functions.recordRiceTransaction(from_party, to_party, rice_type, qty).build_transaction({
+        'from': WALLET_ADDRESS,
+        'nonce': web3_operations.eth.get_transaction_count(WALLET_ADDRESS),
+        'gas': 2000000,
+        'gasPrice': web3_operations.to_wei('20', 'gwei'),
+        'value': value,
+    })
+
+    signed_tx = web3_operations.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_operations.eth.send_raw_transaction(signed_tx.raw_transaction)
+    print("Transaction sent:", tx_hash.hex())
+    receipt = web3_operations.eth.wait_for_transaction_receipt(tx_hash)
+    print("Transaction mined! Block number:", receipt.blockNumber)
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
+
+
+def record_rice_damage(user_id, rice_type, quantity, damage_date):
+    """Record rice damage on the blockchain and return the block hash."""
+    print("\n--- Recording Rice Damage on Blockchain ---")
+    print(f"User ID: {user_id}")
+    print(f"Rice Type: {rice_type}")
+    print(f"Quantity: {quantity}")
+    print(f"Damage Date: {damage_date}")
+
+    # Create rice damage input tuple
+    rice_damage_input = (user_id, rice_type, int(quantity), int(damage_date))
+    value = 0  # No ETH value sent
+
+    # Test call
+    try:
+        operations_contract.functions.recordRiceDamage(rice_damage_input).call({'from': WALLET_ADDRESS, 'value': value})
+        print("Call simulation succeeded (no revert).")
+    except Exception as e:
+        print("Call simulation reverted or failed:", e)
+        return None
+
+    tx = operations_contract.functions.recordRiceDamage(rice_damage_input).build_transaction({
+        'from': WALLET_ADDRESS,
+        'nonce': web3_operations.eth.get_transaction_count(WALLET_ADDRESS),
+        'gas': 2000000,
+        'gasPrice': web3_operations.to_wei('20', 'gwei'),
+        'value': value,
+    })
+
+    signed_tx = web3_operations.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = web3_operations.eth.send_raw_transaction(signed_tx.raw_transaction)
+    print("Transaction sent:", tx_hash.hex())
+    receipt = web3_operations.eth.wait_for_transaction_receipt(tx_hash)
+    print("Transaction mined! Block number:", receipt.blockNumber)
+    print("Transaction mined! Block hash:", receipt.blockHash.hex())
+    return receipt.blockHash.hex()
+
+
+# ========================================
+# UTILITY FUNCTIONS
+# ========================================
+
+def check_connection():
+    """Check if web3 is connected to the blockchain."""
+    if web3.is_connected():
+        print("✓ Connected to blockchain")
+        print("Network ID:", web3_operations.eth.chain_id)
+        print("Latest block:", web3_operations.eth.block_number)
+        return True
+    else:
+        print("✗ Not connected to blockchain")
+        return False
 
 
 if __name__ == "__main__":
-    menu_loop()
+    print("=" * 50)
+    print("Rice Supply Chain Blockchain Interface")
+    print("=" * 50)
+    check_connection()

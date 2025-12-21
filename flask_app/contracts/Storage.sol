@@ -1,198 +1,362 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-contract Storage {
-    // --- Farmer structure ---
-    struct Farmer {
-        string id; // Government-issued ID
-        string nic;
-        string fullName;
-        string homeAddress;
-        string district;
-        string contactNumber;
-        uint256 totalPaddyFieldArea;
+contract Operations {
+    // --- Damage record structure ---
+    struct DamageRecord { 
+        string userId;
+        string paddyType;
+        uint256 quantity;
+        uint256 damageDate;
     }
 
-    // --- Collector structure ---
-    struct Collector {
-        string id;
-        string nic;
-        string fullName;
-        string homeAddress;
-        string district;
-        string contactNumber;
+    // --- Transaction structure ---
+    struct Transaction {
+        string fromParty;
+        string toParty;
+        string productType;
+        uint256 quantity;
+        uint256 timestamp;
     }
 
-    // --- Miller structure ---
-    struct Miller {
-        string id;
-        string companyRegisterNumber;
-        string companyName;
-        string homeAddress;
-        string district;
-        string contactNumber;
+    // --- Rice Damage record structure ---
+    struct RiceDamageRecord { 
+        string userId;
+        string riceType;
+        uint256 quantity;
+        uint256 damageDate;
     }
 
-    // --- Input structs for registration ---
-    struct FarmerInput {
-        string id;
-        string nic;
-        string fullName;
-        string homeAddress;
-        string district;
-        string contactNumber;
-        uint256 totalPaddyFieldArea;
+    // --- Rice Transaction structure ---
+    struct RiceTransaction {
+        string fromParty;
+        string toParty;
+        string riceType;
+        uint256 quantity;
+        uint256 timestamp;
     }
 
-    struct CollectorInput {
-        string id;
-        string nic;
-        string fullName;
-        string homeAddress;
-        string district;
-        string contactNumber;
+    // --- Milling record structure ---
+    struct MillingRecord {
+        string millerId;
+        string paddyType;
+        uint256 inputQty;
+        uint256 outputQty;
+        uint256 date;
     }
 
-    struct MillerInput {
-        string id;
-        string companyRegisterNumber;
-        string companyName;
-        string homeAddress;
-        string district;
-        string contactNumber;
+    // --- Input structs ---
+    struct DamageRecordInput {
+        string userId;
+        string paddyType;
+        uint256 quantity;
+        uint256 damageDate;
     }
 
-    // --- Storage mappings ---
-    mapping(string => Farmer) public farmers;
-    mapping(string => Collector) public collectors;
-    mapping(string => Miller) public millers;
-    // Keep a list of registered farmer IDs so we can enumerate farmers
-    string[] public farmerIds;
-    // Keep a list of registered miller IDs so we can enumerate millers
-    string[] public millerIds;
-    // Keep a list of registered collector IDs so we can enumerate collectors
-    string[] public collectorIds;
+    struct RiceDamageRecordInput {
+        string userId;
+        string riceType;
+        uint256 quantity;
+        uint256 damageDate;
+    }
+
+    struct MillingRecordInput {
+        string millerId;
+        string paddyType;
+        uint256 inputQty;
+        uint256 outputQty;
+        uint256 date;
+    }
+
+    // --- Damage records ---
+    uint256 public nextDamageId;
+    mapping(uint256 => DamageRecord) public damageRecords;
+
+    // --- Transaction tracking ---
+    uint256 public nextTxId;
+    mapping(uint256 => Transaction) public transactions; // txId -> Transaction
+
+    // Optional indexes for traceability per actor
+    mapping(string => uint256[]) public sentTxs;    // sender name -> txIds
+    mapping(string => uint256[]) public receivedTxs; // receiver name -> txIds
+
+    // --- Rice Damage records ---
+    uint256 public nextRiceDamageId;
+    mapping(uint256 => RiceDamageRecord) public riceDamageRecords;
+
+    // --- Rice Transaction tracking ---
+    uint256 public nextRiceTxId;
+    mapping(uint256 => RiceTransaction) public riceTransactions; // txId -> RiceTransaction
+
+    // Optional indexes for traceability per actor for rice
+    mapping(string => uint256[]) public sentRiceTxs;    // sender name -> txIds
+    mapping(string => uint256[]) public receivedRiceTxs; // receiver name -> txIds
+
+    // --- Milling records ---
+    uint256 public nextMillingId;
+    mapping(uint256 => MillingRecord) public millingRecords;
 
     // --- Events ---
-    event FarmerRegistered(string id, string fullName);
-    event CollectorRegistered(string id, string fullName);
-    event MillerRegistered(string id, string companyName);
+    event DamageRecorded(
+        uint256 indexed damageId,
+        string userId,
+        string paddyType,
+        uint256 quantity,
+        uint256 damageDate
+    );
+    
+    // Log for off-chain traceability
+    event TransactionRecorded(
+        uint256 indexed txId,
+        string indexed fromParty,
+        string indexed toParty,
+        string productType,
+        uint256 quantity,
+        uint256 timestamp
+    );
 
-    // --- Register Farmer ---
-    function registerFarmer(FarmerInput calldata input) external {
-        require(bytes(farmers[input.id].id).length == 0, "Farmer already registered");
+    event RiceDamageRecorded(
+        uint256 indexed damageId,
+        string userId,
+        string riceType,
+        uint256 quantity,
+        uint256 damageDate
+    );
 
-        farmers[input.id] = Farmer({
-            id: input.id,
-            nic: input.nic,
-            fullName: input.fullName,
-            homeAddress: input.homeAddress,
-            district: input.district,
-            contactNumber: input.contactNumber,
-            totalPaddyFieldArea: input.totalPaddyFieldArea
+    event RiceTransactionRecorded(
+        uint256 indexed txId,
+        string indexed fromParty,
+        string indexed toParty,
+        string riceType,
+        uint256 quantity,
+        uint256 timestamp
+    );
+
+    event MillingRecorded(
+        uint256 indexed millingId,
+        string millerId,
+        string paddyType,
+        uint256 inputQty,
+        uint256 outputQty,
+        uint256 date
+    );
+
+    // --- Transaction recording ---
+    function recordTransaction(
+        string calldata fromParty,
+        string calldata toParty,
+        string calldata productType,
+        uint256 quantity
+    ) external {
+        uint256 txId = nextTxId;
+        // initialize nextTxId if zero (start at 1)
+        if (txId == 0) {
+            txId = 1;
+            nextTxId = 2;
+        } else {
+            nextTxId = txId + 1;
+        }
+
+        transactions[txId] = Transaction({
+            fromParty: fromParty,
+            toParty: toParty,
+            productType: productType,
+            quantity: quantity,
+            timestamp: block.timestamp
         });
 
-        // track id for enumeration
-        farmerIds.push(input.id);
+        sentTxs[fromParty].push(txId);
+        receivedTxs[toParty].push(txId);
 
-        emit FarmerRegistered(input.id, input.fullName);
+        emit TransactionRecorded(txId, fromParty, toParty, productType, quantity, block.timestamp);
     }
 
-    // --- Register Collector ---
-    function registerCollector(CollectorInput calldata input) external {
-        require(bytes(collectors[input.id].id).length == 0, "Collector already registered");
-
-        collectors[input.id] = Collector({
-            id: input.id,
-            nic: input.nic,
-            fullName: input.fullName,
-            homeAddress: input.homeAddress,
-            district: input.district,
-            contactNumber: input.contactNumber
-        });
-
-        // track id for enumeration
-        collectorIds.push(input.id);
-
-        emit CollectorRegistered(input.id, input.fullName);
+    // Return single transaction by id
+    function getTransaction(uint256 txId) external view returns (Transaction memory) {
+        require(txId != 0 && txId < nextTxId, "Transaction not found");
+        return transactions[txId];
     }
 
-    // --- Register Miller ---
-    function registerMiller(MillerInput calldata input) external {
-        require(bytes(millers[input.id].id).length == 0, "Miller already registered");
-
-        millers[input.id] = Miller({
-            id: input.id,
-            companyRegisterNumber: input.companyRegisterNumber,
-            companyName: input.companyName,
-            homeAddress: input.homeAddress,
-            district: input.district,
-            contactNumber: input.contactNumber
-        });
-
-        // track id for enumeration
-        millerIds.push(input.id);
-
-        emit MillerRegistered(input.id, input.companyName);
-    }
-
-    // --- View functions ---
-    function getFarmer(string calldata _id) external view returns (Farmer memory) {
-        require(bytes(farmers[_id].id).length != 0, "Farmer not found");
-        return farmers[_id];
-    }
-
-    function getCollector(string calldata _id) external view returns (Collector memory) {
-        require(bytes(collectors[_id].id).length != 0, "Collector not found");
-        return collectors[_id];
-    }
-
-    function getMiller(string calldata _id) external view returns (Miller memory) {
-        require(bytes(millers[_id].id).length != 0, "Miller not found");
-        return millers[_id];
-    }
-
-    // Return all registered farmer IDs
-    function getFarmerIds() external view returns (string[] memory) {
-        return farmerIds;
-    }
-
-    // Return all registered farmers
-    function getAllFarmers() external view returns (Farmer[] memory) {
-        uint256 len = farmerIds.length;
-        Farmer[] memory list = new Farmer[](len);
+    // Return all transactions (for small datasets)
+    function getAllTransactions() external view returns (Transaction[] memory) {
+        uint256 len = nextTxId == 0 ? 0 : nextTxId - 1;
+        Transaction[] memory list = new Transaction[](len);
         for (uint256 i = 0; i < len; i++) {
-            list[i] = farmers[farmerIds[i]];
+            list[i] = transactions[i + 1];
         }
         return list;
     }
 
-    // Return all registered miller IDs
-    function getMillerIds() external view returns (string[] memory) {
-        return millerIds;
+    // --- Record Damage ---
+    function recordDamage(DamageRecordInput calldata input) external {
+        uint256 damageId = nextDamageId;
+        if (damageId == 0) {
+            damageId = 1;
+            nextDamageId = 2;
+        } else {
+            nextDamageId = damageId + 1;
+        }
+
+        damageRecords[damageId] = DamageRecord({
+            userId: input.userId,
+            paddyType: input.paddyType,
+            quantity: input.quantity,
+            damageDate: input.damageDate
+        });
+
+        emit DamageRecorded(
+            damageId,
+            input.userId,
+            input.paddyType,
+            input.quantity,
+            input.damageDate
+        );
     }
 
-    // Return all registered collector IDs
-    function getCollectorIds() external view returns (string[] memory) {
-        return collectorIds;
+    // Get damage record
+    function getDamageRecord(uint256 _damageId) external view returns (DamageRecord memory) {
+        require(_damageId != 0 && _damageId < nextDamageId, "Damage record not found");
+        return damageRecords[_damageId];
     }
 
-    // Return all registered collectors
-    function getAllCollectors() external view returns (Collector[] memory) {
-        uint256 len = collectorIds.length;
-        Collector[] memory list = new Collector[](len);
+    // Return all damage records
+    function getAllDamageRecords() external view returns (DamageRecord[] memory) {
+        uint256 len = nextDamageId == 0 ? 0 : nextDamageId - 1;
+        DamageRecord[] memory list = new DamageRecord[](len);
         for (uint256 i = 0; i < len; i++) {
-            list[i] = collectors[collectorIds[i]];
+            list[i] = damageRecords[i + 1];
         }
         return list;
     }
 
-    // Return all registered millers
-    function getAllMillers() external view returns (Miller[] memory) {
-        uint256 len = millerIds.length;
-        Miller[] memory list = new Miller[](len);
+    // --- Rice Transaction recording ---
+    function recordRiceTransaction(
+        string calldata fromParty,
+        string calldata toParty,
+        string calldata riceType,
+        uint256 quantity
+    ) external {
+        uint256 txId = nextRiceTxId;
+        // initialize nextRiceTxId if zero (start at 1)
+        if (txId == 0) {
+            txId = 1;
+            nextRiceTxId = 2;
+        } else {
+            nextRiceTxId = txId + 1;
+        }
+
+        riceTransactions[txId] = RiceTransaction({
+            fromParty: fromParty,
+            toParty: toParty,
+            riceType: riceType,
+            quantity: quantity,
+            timestamp: block.timestamp
+        });
+
+        sentRiceTxs[fromParty].push(txId);
+        receivedRiceTxs[toParty].push(txId);
+
+        emit RiceTransactionRecorded(txId, fromParty, toParty, riceType, quantity, block.timestamp);
+    }
+
+    // Return single rice transaction by id
+    function getRiceTransaction(uint256 txId) external view returns (RiceTransaction memory) {
+        require(txId != 0 && txId < nextRiceTxId, "Rice transaction not found");
+        return riceTransactions[txId];
+    }
+
+    // Return all rice transactions (for small datasets)
+    function getAllRiceTransactions() external view returns (RiceTransaction[] memory) {
+        uint256 len = nextRiceTxId == 0 ? 0 : nextRiceTxId - 1;
+        RiceTransaction[] memory list = new RiceTransaction[](len);
         for (uint256 i = 0; i < len; i++) {
-            list[i] = millers[millerIds[i]];
+            list[i] = riceTransactions[i + 1];
+        }
+        return list;
+    }
+
+    // --- Record Rice Damage ---
+    function recordRiceDamage(RiceDamageRecordInput calldata input) external {
+        uint256 damageId = nextRiceDamageId;
+        if (damageId == 0) {
+            damageId = 1;
+            nextRiceDamageId = 2;
+        } else {
+            nextRiceDamageId = damageId + 1;
+        }
+
+        riceDamageRecords[damageId] = RiceDamageRecord({
+            userId: input.userId,
+            riceType: input.riceType,
+            quantity: input.quantity,
+            damageDate: input.damageDate
+        });
+
+        emit RiceDamageRecorded(
+            damageId,
+            input.userId,
+            input.riceType,
+            input.quantity,
+            input.damageDate
+        );
+    }
+
+    // Get single rice damage record
+    function getRiceDamageRecord(uint256 _damageId) external view returns (RiceDamageRecord memory) {
+        require(_damageId != 0 && _damageId < nextRiceDamageId, "Rice damage record not found");
+        return riceDamageRecords[_damageId];
+    }
+
+    // Return all rice damage records
+    function getAllRiceDamageRecords() external view returns (RiceDamageRecord[] memory) {
+        uint256 len = nextRiceDamageId == 0 ? 0 : nextRiceDamageId - 1;
+        RiceDamageRecord[] memory list = new RiceDamageRecord[](len);
+        for (uint256 i = 0; i < len; i++) {
+            list[i] = riceDamageRecords[i + 1];
+        }
+        return list;
+    }
+
+    // --- Record Milling ---
+    function recordMilling(MillingRecordInput calldata input) external {
+        uint256 millingId = nextMillingId;
+        if (millingId == 0) {
+            millingId = 1;
+            nextMillingId = 2;
+        } else {
+            nextMillingId = millingId + 1;
+        }
+
+        millingRecords[millingId] = MillingRecord({
+            millerId: input.millerId,
+            paddyType: input.paddyType,
+            inputQty: input.inputQty,
+            outputQty: input.outputQty,
+            date: input.date
+        });
+
+        emit MillingRecorded(
+            millingId,
+            input.millerId,
+            input.paddyType,
+            input.inputQty,
+            input.outputQty,
+            input.date
+        );
+    }
+
+    // Get single milling record
+    function getMillingRecord(uint256 _millingId) external view returns (MillingRecord memory) {
+        require(_millingId != 0 && _millingId < nextMillingId, "Milling record not found");
+        return millingRecords[_millingId];
+    }
+
+    // Return all milling records
+    function getAllMillingRecords() external view returns (MillingRecord[] memory) {
+        uint256 len = nextMillingId == 0 ? 0 : nextMillingId - 1;
+        MillingRecord[] memory list = new MillingRecord[](len);
+        for (uint256 i = 0; i < len; i++) {
+            list[i] = millingRecords[i + 1];
         }
         return list;
     }

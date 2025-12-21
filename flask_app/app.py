@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, session
 import os
 from dotenv import load_dotenv
 import mysql.connector
-from blockchain import add_farmer, add_miller, add_collector
+from blockchain import add_farmer, add_miller, add_collector, add_wholesaler, add_retailer, add_brewer, add_animal_food, add_exporter, record_transaction, record_damage, record_milling, record_rice_transaction, record_rice_damage
 from mysql.connector import errorcode
 # (Blockchain integration removed) This application no longer attempts to register users on-chain.
 
@@ -58,7 +58,9 @@ def init_db():
             contact_number VARCHAR(64),
             password VARCHAR(255),
             total_area_of_paddy_land VARCHAR(64),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            block_hash VARCHAR(255),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         '''
         cursor.execute(create_table)
@@ -75,6 +77,7 @@ def init_db():
             `type` VARCHAR(100),
             quantity DECIMAL(14,3),
             `datetime` DATETIME,
+            block_hash VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         '''
@@ -136,6 +139,7 @@ def init_db():
             quantity DECIMAL(14,3),
             reason TEXT,
             damage_date DATETIME,
+            block_hash VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             INDEX (user_id),
             INDEX (paddy_type)
@@ -159,6 +163,7 @@ def init_db():
             input_paddy DECIMAL(14,3),
             output_rice DECIMAL(14,3),
             milling_date DATE,
+            block_hash VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             INDEX (miller_id),
             INDEX (paddy_type)
@@ -190,6 +195,56 @@ def init_db():
             cursor.execute(create_rice_stock)
         except mysql.connector.Error as e:
             print('Could not create rice_stock table:', e)
+        finally:
+            cursor.close()
+            conn.close()
+        
+        # Create rice_transaction table to track rice transactions (Miller -> Wholesaler/Retailer/etc)
+        conn = get_connection(MYSQL_DATABASE)
+        cursor = conn.cursor()
+        create_rice_tx = '''
+        CREATE TABLE IF NOT EXISTS `rice_transaction` (
+            id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `from` VARCHAR(255),
+            `to` VARCHAR(255),
+            rice_type VARCHAR(100),
+            quantity DECIMAL(14,3),
+            `datetime` DATETIME,
+            block_hash VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX (`from`),
+            INDEX (`to`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        '''
+        try:
+            cursor.execute(create_rice_tx)
+        except mysql.connector.Error as e:
+            print('Could not create rice_transaction table:', e)
+        finally:
+            cursor.close()
+            conn.close()
+        
+        # Create rice_damage table to track rice damage (Wholesaler/Retailer/etc)
+        conn = get_connection(MYSQL_DATABASE)
+        cursor = conn.cursor()
+        create_rice_damage = '''
+        CREATE TABLE IF NOT EXISTS `rice_damage` (
+            id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            user_id VARCHAR(255),
+            rice_type VARCHAR(128),
+            quantity DECIMAL(14,3),
+            reason TEXT,
+            damage_date DATETIME,
+            block_hash VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX (user_id),
+            INDEX (rice_type)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        '''
+        try:
+            cursor.execute(create_rice_damage)
+        except mysql.connector.Error as e:
+            print('Could not create rice_damage table:', e)
         finally:
             cursor.close()
             conn.close()
@@ -318,14 +373,14 @@ def api_me():
 
 
 def log_last_inserted_user(user_type):
-    """Fetch the most recently created user's ID by user_type.
-    Always return the next ID (e.g., COL5, FAR1, MIL10).
+    """Fetch the highest numeric ID for the given user_type and return the next ID.
+    Always return the next ID (e.g., COL6, FAR6, MIL4).
     """
     try:
         # Prefix mapping for each user type
         prefix_map = {
-            "Collector": "COL",
             "Farmer": "FAR",
+            "Collecter": "COL",
             "Miller": "MIL",
             "Wholesaler": "WHO",
             "Retailer": "RET",
@@ -340,25 +395,28 @@ def log_last_inserted_user(user_type):
         conn = get_connection(MYSQL_DATABASE)
         cur = conn.cursor(dictionary=True)
 
+        # Fetch all IDs for this user type and find the maximum numeric value
         query = """
             SELECT id FROM users
             WHERE user_type = %s
-            ORDER BY created_at DESC
-            LIMIT 1
         """
         cur.execute(query, (user_type,))
-        row = cur.fetchone()
+        rows = cur.fetchall()
 
-        # Determine next numeric part
-        if row and row.get("id"):
-            user_id = str(row["id"])
-            numeric_part = user_id[3:] if len(user_id) > 3 else "0"
-            try:
-                next_number = int(numeric_part) + 1
-            except ValueError:
-                next_number = 1
-        else:
-            next_number = 1
+        max_number = 0
+        for row in rows:
+            if row and row.get("id"):
+                user_id = str(row["id"])
+                # Extract numeric part (everything after the prefix)
+                numeric_part = user_id[len(prefix):] if len(user_id) > len(prefix) else "0"
+                try:
+                    num = int(numeric_part)
+                    if num > max_number:
+                        max_number = num
+                except (ValueError, TypeError):
+                    continue
+
+        next_number = max_number + 1
 
         cur.close()
         conn.close()
@@ -386,14 +444,29 @@ def api_get_users():
             'Wholesaler': 'WHO',
             'Retailer': 'RET',
             'Beer': 'BER',
-            'Animal Food': 'ANI'
+            'Animal Food': 'ANI',
+            'Exporter': 'EXP'
         }
+        import datetime as _dt
         for r in rows:
             try:
                 prefix = prefix_map.get(r.get('user_type'), 'USR')
                 r['user_code'] = f"{prefix}{int(r.get('id')):06d}" if r.get('id') is not None else None
             except Exception:
                 r['user_code'] = None
+            # serialize created_at/updated_at to ISO strings if present
+            for k in ('created_at', 'updated_at'):
+                if k in r and r[k] is not None:
+                    try:
+                        if isinstance(r[k], (_dt.datetime, _dt.date)):
+                            r[k] = r[k].isoformat()
+                        else:
+                            r[k] = str(r[k])
+                    except Exception:
+                        try:
+                            r[k] = str(r[k])
+                        except Exception:
+                            r[k] = None
 
         cursor.close()
         conn.close()
@@ -768,9 +841,50 @@ def api_add_transaction():
             return jsonify({'ok': False, 'error': 'Failed updating recipient stock: ' + str(e)}), 500
 
         # Now insert the transaction record (after stock updates)
+        block_hash = None
         try:
-            insert_sql = 'INSERT INTO `transaction` (`from`, `to`, `type`, quantity, `datetime`) VALUES (%s, %s, %s, %s, %s)'
-            cur.execute(insert_sql, (str(from_val), str(to_val), ttype, qty, dt))
+            # Record transaction on blockchain
+            try:
+                # Convert quantity to int for blockchain (assuming kg)
+                qty_int = int(float(qty))
+                
+                # Determine if this is a rice transaction (sender is Miller selling rice)
+                is_rice_transaction = isinstance(sender_type, str) and 'miller' in sender_type.lower()
+                
+                if is_rice_transaction:
+                    # Use rice transaction blockchain function
+                    block_hash = record_rice_transaction(
+                        str(from_val),
+                        str(to_val),
+                        ttype,
+                        qty_int,
+                        0.0
+                    )
+                    print(f"Blockchain RICE transaction recorded. Block hash: {block_hash}")
+                else:
+                    # Use regular paddy transaction blockchain function
+                    block_hash = record_transaction(
+                        str(from_val),
+                        str(to_val),
+                        ttype,
+                        qty_int,
+                        0.0
+                    )
+                    print(f"Blockchain PADDY transaction recorded. Block hash: {block_hash}")
+            except Exception as e:
+                print(f"Failed to record transaction on blockchain: {e}")
+                # Continue with database insert even if blockchain fails
+                block_hash = None
+            
+            # Insert into appropriate table based on transaction type
+            if is_rice_transaction:
+                # Insert into rice_transaction table
+                insert_sql = 'INSERT INTO `rice_transaction` (`from`, `to`, rice_type, quantity, `datetime`, block_hash) VALUES (%s, %s, %s, %s, %s, %s)'
+                cur.execute(insert_sql, (str(from_val), str(to_val), ttype, qty, dt, block_hash))
+            else:
+                # Insert into regular transaction table (paddy)
+                insert_sql = 'INSERT INTO `transaction` (`from`, `to`, `type`, quantity, `datetime`, block_hash) VALUES (%s, %s, %s, %s, %s, %s)'
+                cur.execute(insert_sql, (str(from_val), str(to_val), ttype, qty, dt, block_hash))
             last_id = cur.lastrowid
         except mysql.connector.Error as e:
             try:
@@ -804,29 +918,63 @@ def api_add_transaction():
 
         cur.close()
         conn.close()
-        return jsonify({'ok': True, 'id': last_id}), 201
+        return jsonify({'ok': True, 'id': last_id, 'block_hash': block_hash}), 201
     except mysql.connector.Error as err:
         return jsonify({'ok': False, 'error': str(err)}), 500
 
 
 @app.route('/api/transactions', methods=['GET'])
 def api_get_transactions():
-    """Return transactions. Optional query param `to` to filter by recipient (matches transaction.`to`).
+    """Return transactions from both transaction and rice_transaction tables.
+    Optional query param `to` to filter by recipient, `from` to filter by sender, `user` for either.
     """
     to_param = request.args.get('to')
+    from_param = request.args.get('from')
+    user_param = request.args.get('user')
+    
     try:
         conn = get_connection(MYSQL_DATABASE)
         cur = conn.cursor(dictionary=True)
+        
+        # Query paddy transactions
+        paddy_transactions = []
         if to_param:
-            sql = 'SELECT id, `from`, `to`, `type`, quantity, `datetime`, created_at FROM `transaction` WHERE `to` = %s ORDER BY id DESC'
+            sql = 'SELECT id, `from`, `to`, `type`, quantity, `datetime`, block_hash, created_at FROM `transaction` WHERE `to` = %s ORDER BY id DESC'
             cur.execute(sql, (str(to_param),))
+        elif from_param:
+            sql = 'SELECT id, `from`, `to`, `type`, quantity, `datetime`, block_hash, created_at FROM `transaction` WHERE `from` = %s ORDER BY id DESC'
+            cur.execute(sql, (str(from_param),))
+        elif user_param:
+            sql = 'SELECT id, `from`, `to`, `type`, quantity, `datetime`, block_hash, created_at FROM `transaction` WHERE `from` = %s OR `to` = %s ORDER BY id DESC'
+            cur.execute(sql, (str(user_param), str(user_param)))
         else:
-            sql = 'SELECT id, `from`, `to`, `type`, quantity, `datetime`, created_at FROM `transaction` ORDER BY id DESC LIMIT 200'
+            sql = 'SELECT id, `from`, `to`, `type`, quantity, `datetime`, block_hash, created_at FROM `transaction` ORDER BY id DESC LIMIT 200'
             cur.execute(sql)
-        rows = cur.fetchall()
+        paddy_transactions = cur.fetchall()
+        
+        # Query rice transactions
+        rice_transactions = []
+        if to_param:
+            sql = 'SELECT id, `from`, `to`, rice_type as `type`, quantity, `datetime`, block_hash, created_at FROM `rice_transaction` WHERE `to` = %s ORDER BY id DESC'
+            cur.execute(sql, (str(to_param),))
+        elif from_param:
+            sql = 'SELECT id, `from`, `to`, rice_type as `type`, quantity, `datetime`, block_hash, created_at FROM `rice_transaction` WHERE `from` = %s ORDER BY id DESC'
+            cur.execute(sql, (str(from_param),))
+        elif user_param:
+            sql = 'SELECT id, `from`, `to`, rice_type as `type`, quantity, `datetime`, block_hash, created_at FROM `rice_transaction` WHERE `from` = %s OR `to` = %s ORDER BY id DESC'
+            cur.execute(sql, (str(user_param), str(user_param)))
+        else:
+            sql = 'SELECT id, `from`, `to`, rice_type as `type`, quantity, `datetime`, block_hash, created_at FROM `rice_transaction` ORDER BY id DESC LIMIT 200'
+            cur.execute(sql)
+        rice_transactions = cur.fetchall()
+        
+        # Merge and sort by datetime
+        all_transactions = paddy_transactions + rice_transactions
+        all_transactions.sort(key=lambda x: x.get('datetime') or x.get('created_at') or '', reverse=True)
+        
         cur.close()
         conn.close()
-        return jsonify(rows)
+        return jsonify(all_transactions)
     except mysql.connector.Error as err:
         return jsonify({'error': str(err)}), 500
 
@@ -880,6 +1028,15 @@ def api_add_damage():
         
         cur = conn.cursor()
         
+        # Determine user type to decide which blockchain function to use
+        user_type = None
+        try:
+            cur.execute('SELECT user_type FROM users WHERE id = %s LIMIT 1', (str(user_id),))
+            urow = cur.fetchone()
+            user_type = urow[0] if urow else None
+        except Exception:
+            user_type = None
+        
         # Check if sufficient stock exists for this user and paddy type
         cur.execute('SELECT id, amount FROM `stock` WHERE user_id = %s AND `type` = %s FOR UPDATE', 
                     (str(user_id), paddy_type))
@@ -910,9 +1067,70 @@ def api_add_damage():
         cur.execute('UPDATE `stock` SET amount = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s', 
                     (new_amount, stock_id))
         
-        # Insert damage record
-        insert_sql = 'INSERT INTO `damage` (user_id, paddy_type, quantity, reason, damage_date) VALUES (%s, %s, %s, %s, %s)'
-        cur.execute(insert_sql, (str(user_id), paddy_type, qty, reason, damage_date))
+        # Record damage on blockchain
+        block_hash = None
+        try:
+            # Convert damage_date to timestamp for blockchain
+            import datetime
+            if damage_date:
+                try:
+                    dt_obj = datetime.datetime.fromisoformat(damage_date.replace('Z', '+00:00'))
+                    timestamp = int(dt_obj.timestamp())
+                except:
+                    timestamp = int(datetime.datetime.now().timestamp())
+            else:
+                timestamp = int(datetime.datetime.now().timestamp())
+            
+            # Convert quantity to int for blockchain (assuming kg)
+            qty_int = int(float(qty))
+            
+            # Allow caller to override kind ('rice'|'paddy') via payload; otherwise
+            # determine rice vs paddy based on stored user_type.
+            kind_override = (payload.get('kind') or '').strip().lower()
+            if kind_override == 'rice':
+                is_rice_damage = True
+            elif kind_override == 'paddy':
+                is_rice_damage = False
+            else:
+                # Determine if this is rice damage (user is Wholesaler, Retailer, Brewer, Animal Food, Exporter)
+                is_rice_damage = isinstance(user_type, str) and any(
+                    role in user_type.lower()
+                    for role in ['wholesaler', 'retailer', 'brewer', 'animal', 'exporter']
+                )
+            
+            if is_rice_damage:
+                # Use rice damage blockchain function
+                block_hash = record_rice_damage(
+                    str(user_id),
+                    paddy_type,  # This is actually rice type in this context
+                    qty_int,
+                    timestamp
+                )
+                print(f"Blockchain RICE damage recorded. Block hash: {block_hash}")
+            else:
+                # Use regular paddy damage blockchain function
+                block_hash = record_damage(
+                    str(user_id),
+                    paddy_type,
+                    qty_int,
+                    timestamp,
+                    0.0
+                )
+                print(f"Blockchain PADDY damage recorded. Block hash: {block_hash}")
+        except Exception as e:
+            print(f"Failed to record damage on blockchain: {e}")
+            # Continue with database insert even if blockchain fails
+            block_hash = None
+        
+        # Insert damage record into appropriate table
+        if is_rice_damage:
+            # Insert into rice_damage table
+            insert_sql = 'INSERT INTO `rice_damage` (user_id, rice_type, quantity, reason, damage_date, block_hash) VALUES (%s, %s, %s, %s, %s, %s)'
+            cur.execute(insert_sql, (str(user_id), paddy_type, qty, reason, damage_date, block_hash))
+        else:
+            # Insert into regular damage table (paddy)
+            insert_sql = 'INSERT INTO `damage` (user_id, paddy_type, quantity, reason, damage_date, block_hash) VALUES (%s, %s, %s, %s, %s, %s)'
+            cur.execute(insert_sql, (str(user_id), paddy_type, qty, reason, damage_date, block_hash))
         last_id = cur.lastrowid
         
         # Commit transaction
@@ -929,29 +1147,56 @@ def api_add_damage():
         
         cur.close()
         conn.close()
-        return jsonify({'ok': True, 'id': last_id, 'remaining_stock': new_amount}), 201
+        return jsonify({'ok': True, 'id': last_id, 'remaining_stock': new_amount, 'block_hash': block_hash}), 201
     except mysql.connector.Error as err:
         return jsonify({'ok': False, 'error': str(err)}), 500
 
 
 @app.route('/api/damages', methods=['GET'])
 def api_get_damages():
-    """Return damage records. Optional query param `user_id` to filter by user.
+    """Return damage records from both damage and rice_damage tables.
+    Optional query param `user_id` to filter by user.
     """
     user_id_param = request.args.get('user_id')
+    kind = request.args.get('kind')  # 'rice' or 'paddy' to filter by type
     try:
         conn = get_connection(MYSQL_DATABASE)
         cur = conn.cursor(dictionary=True)
+        
+        # Query paddy damages
+        paddy_damages = []
         if user_id_param:
-            sql = 'SELECT id, user_id, paddy_type, quantity, reason, damage_date, created_at FROM `damage` WHERE user_id = %s ORDER BY id DESC'
+            sql = 'SELECT id, user_id, paddy_type, quantity, reason, damage_date, block_hash, created_at FROM `damage` WHERE user_id = %s ORDER BY id DESC'
             cur.execute(sql, (str(user_id_param),))
         else:
-            sql = 'SELECT id, user_id, paddy_type, quantity, reason, damage_date, created_at FROM `damage` ORDER BY id DESC LIMIT 200'
+            sql = 'SELECT id, user_id, paddy_type, quantity, reason, damage_date, block_hash, created_at FROM `damage` ORDER BY id DESC LIMIT 200'
             cur.execute(sql)
-        rows = cur.fetchall()
+        paddy_damages = cur.fetchall()
+        
+        # Query rice damages
+        rice_damages = []
+        if user_id_param:
+            sql = 'SELECT id, user_id, rice_type as paddy_type, quantity, reason, damage_date, block_hash, created_at FROM `rice_damage` WHERE user_id = %s ORDER BY id DESC'
+            cur.execute(sql, (str(user_id_param),))
+        else:
+            sql = 'SELECT id, user_id, rice_type as paddy_type, quantity, reason, damage_date, block_hash, created_at FROM `rice_damage` ORDER BY id DESC LIMIT 200'
+            cur.execute(sql)
+        rice_damages = cur.fetchall()
+        
+        # Return based on kind param
+        if kind == 'rice':
+            results = rice_damages
+        elif kind == 'paddy':
+            results = paddy_damages
+        else:
+            # Merge and sort by damage_date or created_at
+            all_damages = paddy_damages + rice_damages
+            all_damages.sort(key=lambda x: x.get('damage_date') or x.get('created_at') or '', reverse=True)
+            results = all_damages
+
         cur.close()
         conn.close()
-        return jsonify(rows)
+        return jsonify(results)
     except mysql.connector.Error as err:
         return jsonify({'error': str(err)}), 500
 
@@ -1245,48 +1490,126 @@ def api_add_user():
             pass
    
     try:
+        block_hash = None
         if(user_type=="Farmer"):
             try:
-                add_farmer(
+                block_hash = add_farmer(
                     id,
-                        nic,
+                    nic,
                     full_name,
                     address,
                     district,
                     contact_number,
-                123,
+                    123,
                     0.0,
                 )
-                print("add_farmer call finished.")
+                print("add_farmer call finished. Block hash:", block_hash)
             except Exception as e:
                 print("add_farmer raised an exception:", e)
         elif(user_type=="Miller"):
-             add_miller(
-            id,
-            company_register_number,
-            company_name,
-            address,
-            district,
-            contact_number,
-            0.0,
-        )
+            try:
+                block_hash = add_miller(
+                    id,
+                    company_register_number,
+                    company_name,
+                    address,
+                    district,
+                    contact_number,
+                    0.0,
+                )
+                print("add_miller call finished. Block hash:", block_hash)
+            except Exception as e:
+                print("add_miller raised an exception:", e)
         elif(user_type=="Collecter"):
-            add_collector(
-            id,
-            nic,
-            full_name,
-            address,
-            district,
-            contact_number,
-            0.0,
-        )
+            try:
+                block_hash = add_collector(
+                    id,
+                    nic,
+                    full_name,
+                    address,
+                    district,
+                    contact_number,
+                    0.0,
+                )
+                print("add_collector call finished. Block hash:", block_hash)
+            except Exception as e:
+                print("add_collector raised an exception:", e)
+        elif(user_type=="Wholesaler"):
+            try:
+                block_hash = add_wholesaler(
+                    id,
+                    company_register_number,
+                    company_name,
+                    address,
+                    district,
+                    contact_number,
+                    0.0,
+                )
+                print("add_wholesaler call finished. Block hash:", block_hash)
+            except Exception as e:
+                print("add_wholesaler raised an exception:", e)
+        elif(user_type=="Retailer"):
+            try:
+                block_hash = add_retailer(
+                    id,
+                    full_name or company_name,
+                    address,
+                    district,
+                    contact_number,
+                    0.0,
+                )
+                print("add_retailer call finished. Block hash:", block_hash)
+            except Exception as e:
+                print("add_retailer raised an exception:", e)
+        elif(user_type=="Beer"):
+            try:
+                block_hash = add_brewer(
+                    id,
+                    company_register_number or "",
+                    company_name or full_name,
+                    address,
+                    district,
+                    contact_number,
+                    0.0,
+                )
+                print("add_brewer call finished. Block hash:", block_hash)
+            except Exception as e:
+                print("add_brewer raised an exception:", e)
+        elif(user_type=="Animal Food"):
+            try:
+                block_hash = add_animal_food(
+                    id,
+                    company_register_number or "",
+                    company_name or full_name,
+                    address,
+                    district,
+                    contact_number,
+                    0.0,
+                )
+                print("add_animal_food call finished. Block hash:", block_hash)
+            except Exception as e:
+                print("add_animal_food raised an exception:", e)
+        elif(user_type=="Exporter"):
+            try:
+                block_hash = add_exporter(
+                    id,
+                    company_register_number or "",
+                    company_name or full_name,
+                    address,
+                    district,
+                    contact_number,
+                    0.0,
+                )
+                print("add_exporter call finished. Block hash:", block_hash)
+            except Exception as e:
+                print("add_exporter raised an exception:", e)
         conn = get_connection(MYSQL_DATABASE)
         cursor = conn.cursor()
         insert_sql = '''
-            INSERT INTO users (user_type, nic, full_name, company_register_number, company_name, address, district, contact_number, total_area_of_paddy_land,id,password)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            INSERT INTO users (user_type, nic, full_name, company_register_number, company_name, address, district, contact_number, total_area_of_paddy_land, id, password, block_hash)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         '''
-        cursor.execute(insert_sql, (user_type, nic, full_name, company_register_number, company_name, address, district, contact_number, total_area,id,"123456"))
+        cursor.execute(insert_sql, (user_type, nic, full_name, company_register_number, company_name, address, district, contact_number, total_area, id, "123456", block_hash))
         # Try to get the inserted id reliably. Prefer cursor.lastrowid, but fall back to LAST_INSERT_ID().
         last_id = cursor.lastrowid
         if not last_id:
@@ -1472,9 +1795,40 @@ def api_add_milling():
             conn.close()
             return jsonify({'ok': False, 'error': f'Insufficient stock. Available: {current_stock} kg, Required: {input_qty} kg'}), 400
         
-        # 2. Insert milling record
-        insert_sql = 'INSERT INTO `milling` (miller_id, paddy_type, input_paddy, output_rice, milling_date) VALUES (%s, %s, %s, %s, %s)'
-        cur.execute(insert_sql, (str(miller_id), paddy_type, input_qty, output_qty, milling_date))
+        # 2. Record milling on blockchain and insert milling record
+        block_hash = None
+        try:
+            # Record milling on blockchain using dedicated milling function
+            qty_int = int(float(input_qty))
+            output_int = int(float(output_qty))
+            
+            # Convert milling_date to timestamp if it's a date string
+            if milling_date:
+                from datetime import datetime
+                try:
+                    dt = datetime.strptime(milling_date, '%Y-%m-%d')
+                    date_timestamp = int(dt.timestamp())
+                except:
+                    date_timestamp = int(datetime.now().timestamp())
+            else:
+                from datetime import datetime
+                date_timestamp = int(datetime.now().timestamp())
+            
+            block_hash = record_milling(
+                str(miller_id),
+                paddy_type,
+                qty_int,
+                output_int,
+                date_timestamp
+            )
+            print(f"Blockchain milling recorded. Block hash: {block_hash}")
+        except Exception as e:
+            print(f"Failed to record milling on blockchain: {e}")
+            # Continue with database insert even if blockchain fails
+            block_hash = None
+        
+        insert_sql = 'INSERT INTO `milling` (miller_id, paddy_type, input_paddy, output_rice, milling_date, block_hash) VALUES (%s, %s, %s, %s, %s, %s)'
+        cur.execute(insert_sql, (str(miller_id), paddy_type, input_qty, output_qty, milling_date, block_hash))
         last_id = cur.lastrowid
         
         # 3. Deduct input_paddy from stock table
@@ -1498,7 +1852,7 @@ def api_add_milling():
         
         cur.close()
         conn.close()
-        return jsonify({'ok': True, 'id': last_id}), 201
+        return jsonify({'ok': True, 'id': last_id, 'block_hash': block_hash}), 201
     except mysql.connector.Error as err:
         return jsonify({'ok': False, 'error': str(err)}), 500
 
@@ -1512,10 +1866,10 @@ def api_get_milling():
         conn = get_connection(MYSQL_DATABASE)
         cur = conn.cursor(dictionary=True)
         if miller_id_param:
-            sql = 'SELECT id, miller_id, paddy_type, input_paddy, output_rice, milling_date, created_at FROM `milling` WHERE miller_id = %s ORDER BY id DESC'
+            sql = 'SELECT id, miller_id, paddy_type, input_paddy, output_rice, milling_date, block_hash, created_at FROM `milling` WHERE miller_id = %s ORDER BY id DESC'
             cur.execute(sql, (str(miller_id_param),))
         else:
-            sql = 'SELECT id, miller_id, paddy_type, input_paddy, output_rice, milling_date, created_at FROM `milling` ORDER BY id DESC LIMIT 200'
+            sql = 'SELECT id, miller_id, paddy_type, input_paddy, output_rice, milling_date, block_hash, created_at FROM `milling` ORDER BY id DESC LIMIT 200'
             cur.execute(sql)
         rows = cur.fetchall()
         cur.close()

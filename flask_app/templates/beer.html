@@ -182,6 +182,7 @@
               <th>Date</th>
               <th>Rice Type</th>
               <th>Quantity (kg)</th>
+              <th>Block ID</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -373,12 +374,16 @@
             if (!isRelated) return; // show only related transactions
             const row = tbody.insertRow();
             const dateValue = t.datetime || t.date;
+            const blockIdDisplay = t.block_hash
+              ? t.block_hash.substring(0, 10) + "..."
+              : "Not available";
             row.innerHTML = `
               <td>${
                 dateValue ? new Date(dateValue).toLocaleDateString() : "N/A"
               }</td>
               <td>${t.type}</td>
               <td>${t.quantity}</td>
+              <td title="${t.block_hash || ""}">${blockIdDisplay}</td>
             `;
           });
         } catch (err) {

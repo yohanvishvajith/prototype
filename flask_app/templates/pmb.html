@@ -15,9 +15,10 @@
       <nav class="tabs" aria-label="Government tabs">
         <ul>
           <li class="tab active"><a href="#" data-index="0">Overview</a></li>
-          <li class="tab"><a href="#" data-index="1">Damage</a></li>
-          <li class="tab"><a href="#" data-index="2">Reports</a></li>
-          <li class="tab"><a href="#" data-index="3">Settings</a></li>
+          <li class="tab"><a href="#" data-index="1">Milling</a></li>
+          <li class="tab"><a href="#" data-index="2">Damage</a></li>
+          <li class="tab"><a href="#" data-index="3">Reports</a></li>
+          <li class="tab"><a href="#" data-index="4">Settings</a></li>
         </ul>
       </nav>
     </header>
@@ -71,12 +72,68 @@
         </div>
       </section>
 
+      <section class="panel" id="milling-panel" hidden>
+        <h2>Record Milling (PMB)</h2>
+
+        <div class="card">
+          <form id="pmbMillingForm">
+            <label for="pmbMillingPaddyType">Paddy Type</label>
+            <select id="pmbMillingPaddyType" required>
+              <option value="">Select paddy type</option>
+            </select>
+
+            <label for="pmbMillingInputQty">Input Paddy Quantity (kg)</label>
+            <input
+              id="pmbMillingInputQty"
+              type="number"
+              min="0"
+              step="0.01"
+              required
+            />
+
+            <label for="pmbMillingOutputQty">Output Rice Quantity (kg)</label>
+            <input
+              id="pmbMillingOutputQty"
+              type="number"
+              min="0"
+              step="0.01"
+              required
+            />
+
+            <label for="pmbMillingDate">Milling Date</label>
+            <input id="pmbMillingDate" type="date" required />
+
+            <div class="modal-actions">
+              <button type="submit" class="btn primary">Record Milling</button>
+            </div>
+          </form>
+        </div>
+
+        <h3 style="margin-top: 18px">Recent Milling Records</h3>
+        <div class="table-wrap">
+          <table class="data-table" id="pmbMillingTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Miller</th>
+                <th>Paddy Type</th>
+                <th>Input (kg)</th>
+                <th>Output Rice (kg)</th>
+                <th>Yield (%)</th>
+                <th>Block ID</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="panel" id="damage-panel" hidden>
         <h2>Record Damage (PMB)</h2>
 
         <div class="card">
           <form id="damageForm">
-            <label for="damagePaddyType">Paddy Type</label>
+            <label for="damagePaddyType">Paddy / Rice Type</label>
             <select id="damagePaddyType" required>
               <option value="">Select paddy type</option>
             </select>
@@ -99,14 +156,53 @@
         </div>
 
         <h3 style="margin-top: 18px">Recent Damages</h3>
-        <div class="table-wrap">
-          <table class="data-table" id="damagesTable">
+        <div class="tabs" style="margin-bottom: 12px">
+          <ul
+            style="
+              display: flex;
+              gap: 8px;
+              list-style: none;
+              padding: 0;
+              margin: 0;
+            "
+          >
+            <li>
+              <button type="button" id="pmbDamagePaddyTab" class="btn primary">
+                Paddy
+              </button>
+            </li>
+            <li>
+              <button type="button" id="pmbDamageRiceTab" class="btn">
+                Rice
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <div class="table-wrap" id="pmbDamagesPaddyPanel">
+          <table class="data-table" id="pmbDamagesPaddyTable">
             <thead>
               <tr>
                 <th>Date</th>
                 <th>Paddy Type</th>
                 <th>Qty (kg)</th>
                 <th>Reason</th>
+                <th>Block ID</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="table-wrap" id="pmbDamagesRicePanel" hidden>
+          <table class="data-table" id="pmbDamagesRiceTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Rice Type</th>
+                <th>Qty (kg)</th>
+                <th>Reason</th>
+                <th>Block ID</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -202,6 +298,7 @@
           const tabs = Array.from(document.querySelectorAll(".tabs .tab"));
           const panels = [
             qs("#purchase-panel"),
+            qs("#milling-panel"),
             qs("#damage-panel"),
             qs("#reports-panel"),
             qs("#settings-panel"),
@@ -212,7 +309,11 @@
               tabs.forEach((t) => t.classList.remove("active"));
               tab.classList.add("active");
               panels.forEach((p) => (p.hidden = true));
-              if (panels[i]) panels[i].hidden = false;
+              if (panels[i]) {
+                panels[i].hidden = false;
+                // Load milling data when milling tab is shown
+                if (i === 1) renderPmbMillingTable();
+              }
             });
           });
         }
@@ -346,12 +447,16 @@
             return;
           }
           try {
+            const kind = qs("#pmbDamageRiceTab").classList.contains("primary")
+              ? "rice"
+              : "paddy";
             const payload = {
               user_id: currentUser ? currentUser.user_id : null,
               paddy_type: paddyType,
               quantity: qty,
               reason: reason,
               damage_date: new Date().toISOString(),
+              kind: kind,
             };
             const resp = await fetch("/api/damages", {
               method: "POST",
@@ -363,8 +468,12 @@
               alert("Failed to record damage: " + (j.error || resp.statusText));
               return;
             }
-            // refresh damages list
-            await renderDamageTable();
+            // refresh damages list based on active tab
+            if (kind === "rice") {
+              await renderRiceDamageTable();
+            } else {
+              await renderPaddyDamageTable();
+            }
             qs("#damageForm").reset();
             alert("Damage recorded successfully");
           } catch (err) {
@@ -373,34 +482,212 @@
           }
         });
 
-        // initial render of damage table
-        renderDamageTable();
+        // Populate milling form dropdowns
+        const pmbMillingPaddySel = qs("#pmbMillingPaddyType");
+        pmbMillingPaddySel.innerHTML = "";
+        const millingPh = document.createElement("option");
+        millingPh.value = "";
+        millingPh.textContent = "Select paddy type";
+        pmbMillingPaddySel.appendChild(millingPh);
+        types.forEach((t) => {
+          const o = document.createElement("option");
+          o.value = t.name || t.id || "";
+          o.textContent = t.name || String(t.id || "");
+          pmbMillingPaddySel.appendChild(o);
+        });
+
+        // Set default milling date to today
+        const today = new Date().toISOString().split("T")[0];
+        qs("#pmbMillingDate").value = today;
+
+        // PMB Milling form handler
+        qs("#pmbMillingForm").addEventListener("submit", async (ev) => {
+          ev.preventDefault();
+          const paddyType = qs("#pmbMillingPaddyType").value;
+          const inputQty = qs("#pmbMillingInputQty").value;
+          const outputQty = qs("#pmbMillingOutputQty").value;
+          const millingDate = qs("#pmbMillingDate").value;
+
+          if (!paddyType || !inputQty || !outputQty || !millingDate) {
+            alert("Please fill all fields");
+            return;
+          }
+
+          const inputNum = parseFloat(inputQty);
+          const outputNum = parseFloat(outputQty);
+
+          if (outputNum > inputNum) {
+            alert("Output rice quantity cannot exceed input paddy quantity");
+            return;
+          }
+
+          try {
+            const payload = {
+              miller_id: currentUser.user_id,
+              paddy_type: paddyType,
+              input_paddy: inputNum,
+              output_rice: outputNum,
+              milling_date: millingDate,
+            };
+            const resp = await fetch("/api/milling", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const j = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+              alert(
+                "Failed to save milling record: " + (j.error || resp.statusText)
+              );
+              return;
+            }
+            // refresh milling table
+            await renderPmbMillingTable();
+            qs("#pmbMillingForm").reset();
+            const newToday = new Date().toISOString().split("T")[0];
+            qs("#pmbMillingDate").value = newToday;
+            alert("Milling record saved successfully");
+          } catch (err) {
+            console.error(err);
+            alert("Error saving milling record");
+          }
+        });
+
+        // initial setup for damage tabs and render paddy damages by default
+        setupDamageTabs();
+        await renderPaddyDamageTable();
       });
 
-      async function renderDamageTable() {
-        const dBody = qs("#damagesTable tbody");
+      async function renderPaddyDamageTable() {
+        const dBody = qs("#pmbDamagesPaddyTable tbody");
         dBody.innerHTML = "";
         try {
           const userId = (await fetchCurrentUser())?.user_id || null;
           const url = userId
-            ? `/api/damages?user_id=${encodeURIComponent(userId)}`
-            : "/api/damages";
+            ? `/api/damages?user_id=${encodeURIComponent(userId)}&kind=paddy`
+            : "/api/damages?kind=paddy";
           const res = await fetch(url);
-          if (!res.ok) throw new Error("Failed to load damages");
+          if (!res.ok) throw new Error("Failed to load paddy damages");
           const damages = await res.json();
           damages.forEach((d) => {
             const tr = document.createElement("tr");
             const displayDate = d.damage_date || d.created_at;
+            const hashDisplay = d.block_hash
+              ? String(d.block_hash).slice(0, 12) + "..."
+              : "Not available";
             tr.innerHTML = `<td>${new Date(
               displayDate
             ).toLocaleString()}</td><td>${d.paddy_type}</td><td>${
               d.quantity
-            }</td><td>${d.reason}</td>`;
+            }</td><td>${d.reason}</td><td title="${
+              d.block_hash || ""
+            }">${hashDisplay}</td>`;
             dBody.appendChild(tr);
           });
         } catch (e) {
-          console.error("Could not load damages:", e);
+          console.error("Could not load paddy damages:", e);
         }
+      }
+
+      async function renderRiceDamageTable() {
+        const dBody = qs("#pmbDamagesRiceTable tbody");
+        dBody.innerHTML = "";
+        try {
+          const userId = (await fetchCurrentUser())?.user_id || null;
+          const url = userId
+            ? `/api/damages?user_id=${encodeURIComponent(userId)}&kind=rice`
+            : "/api/damages?kind=rice";
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Failed to load rice damages");
+          const damages = await res.json();
+          damages.forEach((d) => {
+            const tr = document.createElement("tr");
+            const displayDate = d.damage_date || d.created_at;
+            const hashDisplay = d.block_hash
+              ? String(d.block_hash).slice(0, 12) + "..."
+              : "Not available";
+            tr.innerHTML = `<td>${new Date(
+              displayDate
+            ).toLocaleString()}</td><td>${
+              d.paddy_type || d.rice_type
+            }</td><td>${d.quantity}</td><td>${d.reason}</td><td title="${
+              d.block_hash || ""
+            }">${hashDisplay}</td>`;
+            dBody.appendChild(tr);
+          });
+        } catch (e) {
+          console.error("Could not load rice damages:", e);
+        }
+      }
+
+      async function renderPmbMillingTable() {
+        const tbody = qs("#pmbMillingTable tbody");
+        tbody.innerHTML = "";
+        try {
+          const res = await fetch("/api/milling");
+          if (!res.ok) throw new Error("Failed to load milling records");
+          const millingRecords = await res.json();
+
+          // Fetch all users to get miller names
+          const usersRes = await fetch("/api/users");
+          const users = usersRes.ok ? await usersRes.json() : [];
+          const userMap = {};
+          users.forEach((u) => {
+            userMap[u.id] = u.full_name || u.company_name || u.id;
+          });
+
+          millingRecords.forEach((r) => {
+            const inputQty = parseFloat(r.input_paddy) || 0;
+            const outputQty = parseFloat(r.output_rice) || 0;
+            const yield_percent =
+              inputQty > 0 ? ((outputQty / inputQty) * 100).toFixed(2) : 0;
+            const hashDisplay = r.block_hash
+              ? String(r.block_hash).slice(0, 12) + "..."
+              : "Not available";
+            const millerName = userMap[r.miller_id] || r.miller_id;
+            const tr = document.createElement("tr");
+            const displayDate = r.milling_date || r.created_at;
+            tr.innerHTML = `<td>${new Date(
+              displayDate
+            ).toLocaleDateString()}</td>
+                          <td>${millerName}</td>
+                          <td>${r.paddy_type}</td>
+                          <td>${inputQty.toFixed(2)}</td>
+                          <td>${outputQty.toFixed(2)}</td>
+                          <td>${yield_percent}%</td>
+                          <td title="${
+                            r.block_hash || ""
+                          }">${hashDisplay}</td>`;
+            tbody.appendChild(tr);
+          });
+        } catch (e) {
+          console.error("Could not load milling records:", e);
+        }
+      }
+
+      function setupDamageTabs() {
+        const pTab = qs("#pmbDamagePaddyTab");
+        const rTab = qs("#pmbDamageRiceTab");
+        const pPanel = qs("#pmbDamagesPaddyPanel");
+        const rPanel = qs("#pmbDamagesRicePanel");
+
+        pTab.addEventListener("click", async (e) => {
+          e.preventDefault();
+          pTab.classList.add("primary");
+          rTab.classList.remove("primary");
+          pPanel.hidden = false;
+          rPanel.hidden = true;
+          await renderPaddyDamageTable();
+        });
+
+        rTab.addEventListener("click", async (e) => {
+          e.preventDefault();
+          rTab.classList.add("primary");
+          pTab.classList.remove("primary");
+          rPanel.hidden = false;
+          pPanel.hidden = true;
+          await renderRiceDamageTable();
+        });
       }
     </script>
   </body>

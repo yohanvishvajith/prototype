@@ -63,10 +63,10 @@
             <thead>
               <tr>
                 <th>When</th>
-                <th>From (type)</th>
                 <th>Source</th>
                 <th>Paddy Type</th>
                 <th>Qty (kg)</th>
+                <th>Block ID</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -114,6 +114,7 @@
                 <th>Paddy Type</th>
                 <th>Qty (kg)</th>
                 <th>Reason</th>
+                <th>Block ID</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -128,10 +129,10 @@
             <thead>
               <tr>
                 <th>When</th>
-                <th>From (type)</th>
                 <th>Source</th>
                 <th>Paddy Type</th>
                 <th>Qty (kg)</th>
+                <th>Block ID</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -266,6 +267,7 @@
             paddyType: r.type || "",
             qty: Number(r.quantity) || 0,
             tx_id: r.id,
+            block_hash: r.block_hash || null,
           }));
         } catch (e) {
           console.error("Could not fetch transactions", e);
@@ -283,11 +285,14 @@
         const recent = purchases.slice().reverse().slice(0, 10);
         recent.forEach((r) => {
           const tr = document.createElement("tr");
+          const hashDisplay = r.block_hash
+            ? String(r.block_hash).slice(0, 12) + "..."
+            : "Not available";
           tr.innerHTML = `<td>${new Date(r.when).toLocaleString()}</td>
-                          <td>${r.fromType}</td>
                           <td>${r.sourceName}</td>
                           <td>${r.paddyType}</td>
-                          <td>${r.qty}</td>`;
+                          <td>${r.qty}</td>
+                          <td>${hashDisplay}</td>`;
           pBody.appendChild(tr);
         });
 
@@ -296,11 +301,14 @@
           .reverse()
           .forEach((r) => {
             const tr = document.createElement("tr");
+            const hashDisplay = r.block_hash
+              ? String(r.block_hash).slice(0, 12) + "..."
+              : "Not available";
             tr.innerHTML = `<td>${new Date(r.when).toLocaleString()}</td>
-                          <td>${r.fromType}</td>
                           <td>${r.sourceName}</td>
                           <td>${r.paddyType}</td>
-                          <td>${r.qty}</td>`;
+                          <td>${r.qty}</td>
+                          <td>${hashDisplay}</td>`;
             hBody.appendChild(tr);
           });
       }
@@ -484,10 +492,14 @@
           damages.forEach((d) => {
             const tr = document.createElement("tr");
             const displayDate = d.damage_date || d.created_at;
+            const hashDisplay = d.block_hash
+              ? String(d.block_hash).slice(0, 12) + "..."
+              : "Not available";
             tr.innerHTML = `<td>${new Date(displayDate).toLocaleString()}</td>
                           <td>${d.paddy_type}</td>
                           <td>${d.quantity}</td>
-                          <td>${d.reason}</td>`;
+                          <td>${d.reason}</td>
+                          <td>${hashDisplay}</td>`;
             dBody.appendChild(tr);
           });
         } catch (e) {

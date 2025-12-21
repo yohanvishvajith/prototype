@@ -132,43 +132,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "damageId",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "userId",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "paddyType",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "quantity",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "damageDate",
-        "type": "uint256"
-      }
-    ],
-    "name": "DamageRecorded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": false,
         "internalType": "string",
         "name": "id",
@@ -335,129 +298,6 @@
       }
     ],
     "name": "RetailerRegistered",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "damageId",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "userId",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "riceType",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "quantity",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "damageDate",
-        "type": "uint256"
-      }
-    ],
-    "name": "RiceDamageRecorded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "txId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "string",
-        "name": "fromParty",
-        "type": "string"
-      },
-      {
-        "indexed": true,
-        "internalType": "string",
-        "name": "toParty",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "riceType",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "quantity",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
-      }
-    ],
-    "name": "RiceTransactionRecorded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "txId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "string",
-        "name": "fromParty",
-        "type": "string"
-      },
-      {
-        "indexed": true,
-        "internalType": "string",
-        "name": "toParty",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "productType",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "quantity",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
-      }
-    ],
-    "name": "TransactionRecorded",
     "type": "event"
   },
   {
@@ -700,40 +540,6 @@
         "type": "uint256"
       }
     ],
-    "name": "damageRecords",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "userId",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "paddyType",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "quantity",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "damageDate",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
     "name": "exporterIds",
     "outputs": [
       {
@@ -894,7 +700,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.AnimalFood[]",
+        "internalType": "struct UserAccounts.AnimalFood[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -939,7 +745,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.Brewer[]",
+        "internalType": "struct UserAccounts.Brewer[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -984,42 +790,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.Collector[]",
-        "name": "",
-        "type": "tuple[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getAllDamageRecords",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "userId",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "paddyType",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "quantity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "damageDate",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Storage.DamageRecord[]",
+        "internalType": "struct UserAccounts.Collector[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -1064,7 +835,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.Exporter[]",
+        "internalType": "struct UserAccounts.Exporter[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -1114,7 +885,7 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct Storage.Farmer[]",
+        "internalType": "struct UserAccounts.Farmer[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -1159,7 +930,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.Miller[]",
+        "internalType": "struct UserAccounts.Miller[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -1199,122 +970,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.Retailer[]",
-        "name": "",
-        "type": "tuple[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getAllRiceDamageRecords",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "userId",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "riceType",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "quantity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "damageDate",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Storage.RiceDamageRecord[]",
-        "name": "",
-        "type": "tuple[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getAllRiceTransactions",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "fromParty",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "toParty",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "riceType",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "quantity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "timestamp",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Storage.RiceTransaction[]",
-        "name": "",
-        "type": "tuple[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getAllTransactions",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "fromParty",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "toParty",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "productType",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "quantity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "timestamp",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Storage.Transaction[]",
+        "internalType": "struct UserAccounts.Retailer[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -1359,7 +1015,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.Wholesaler[]",
+        "internalType": "struct UserAccounts.Wholesaler[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -1410,9 +1066,22 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.AnimalFood",
+        "internalType": "struct UserAccounts.AnimalFood",
         "name": "",
         "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAnimalFoodIds",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "",
+        "type": "string[]"
       }
     ],
     "stateMutability": "view",
@@ -1461,9 +1130,22 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.Brewer",
+        "internalType": "struct UserAccounts.Brewer",
         "name": "",
         "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getBrewerIds",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "",
+        "type": "string[]"
       }
     ],
     "stateMutability": "view",
@@ -1512,7 +1194,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.Collector",
+        "internalType": "struct UserAccounts.Collector",
         "name": "",
         "type": "tuple"
       }
@@ -1528,47 +1210,6 @@
         "internalType": "string[]",
         "name": "",
         "type": "string[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_damageId",
-        "type": "uint256"
-      }
-    ],
-    "name": "getDamageRecord",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "userId",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "paddyType",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "quantity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "damageDate",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Storage.DamageRecord",
-        "name": "",
-        "type": "tuple"
       }
     ],
     "stateMutability": "view",
@@ -1617,9 +1258,22 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.Exporter",
+        "internalType": "struct UserAccounts.Exporter",
         "name": "",
         "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getExporterIds",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "",
+        "type": "string[]"
       }
     ],
     "stateMutability": "view",
@@ -1673,7 +1327,7 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct Storage.Farmer",
+        "internalType": "struct UserAccounts.Farmer",
         "name": "",
         "type": "tuple"
       }
@@ -1737,7 +1391,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.Miller",
+        "internalType": "struct UserAccounts.Miller",
         "name": "",
         "type": "tuple"
       }
@@ -1796,7 +1450,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.Retailer",
+        "internalType": "struct UserAccounts.Retailer",
         "name": "",
         "type": "tuple"
       }
@@ -1805,133 +1459,13 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "_damageId",
-        "type": "uint256"
-      }
-    ],
-    "name": "getRiceDamageRecord",
+    "inputs": [],
+    "name": "getRetailerIds",
     "outputs": [
       {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "userId",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "riceType",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "quantity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "damageDate",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Storage.RiceDamageRecord",
+        "internalType": "string[]",
         "name": "",
-        "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "txId",
-        "type": "uint256"
-      }
-    ],
-    "name": "getRiceTransaction",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "fromParty",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "toParty",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "riceType",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "quantity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "timestamp",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Storage.RiceTransaction",
-        "name": "",
-        "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "txId",
-        "type": "uint256"
-      }
-    ],
-    "name": "getTransaction",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "fromParty",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "toParty",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "productType",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "quantity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "timestamp",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Storage.Transaction",
-        "name": "",
-        "type": "tuple"
+        "type": "string[]"
       }
     ],
     "stateMutability": "view",
@@ -1980,9 +1514,22 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.Wholesaler",
+        "internalType": "struct UserAccounts.Wholesaler",
         "name": "",
         "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getWholesalerIds",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "",
+        "type": "string[]"
       }
     ],
     "stateMutability": "view",
@@ -2052,232 +1599,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "nextDamageId",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "nextRiceDamageId",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "nextRiceTxId",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "nextTxId",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "receivedRiceTxs",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "receivedTxs",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "userId",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "paddyType",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "quantity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "damageDate",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Storage.DamageRecordInput",
-        "name": "input",
-        "type": "tuple"
-      }
-    ],
-    "name": "recordDamage",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "userId",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "riceType",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "quantity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "damageDate",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct Storage.RiceDamageRecordInput",
-        "name": "input",
-        "type": "tuple"
-      }
-    ],
-    "name": "recordRiceDamage",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "fromParty",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "toParty",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "riceType",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "quantity",
-        "type": "uint256"
-      }
-    ],
-    "name": "recordRiceTransaction",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "fromParty",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "toParty",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "productType",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "quantity",
-        "type": "uint256"
-      }
-    ],
-    "name": "recordTransaction",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "components": [
@@ -2312,7 +1633,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.AnimalFoodInput",
+        "internalType": "struct UserAccounts.AnimalFoodInput",
         "name": "input",
         "type": "tuple"
       }
@@ -2357,7 +1678,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.BrewerInput",
+        "internalType": "struct UserAccounts.BrewerInput",
         "name": "input",
         "type": "tuple"
       }
@@ -2402,7 +1723,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.CollectorInput",
+        "internalType": "struct UserAccounts.CollectorInput",
         "name": "input",
         "type": "tuple"
       }
@@ -2447,7 +1768,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.ExporterInput",
+        "internalType": "struct UserAccounts.ExporterInput",
         "name": "input",
         "type": "tuple"
       }
@@ -2497,7 +1818,7 @@
             "type": "uint256"
           }
         ],
-        "internalType": "struct Storage.FarmerInput",
+        "internalType": "struct UserAccounts.FarmerInput",
         "name": "input",
         "type": "tuple"
       }
@@ -2542,7 +1863,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.MillerInput",
+        "internalType": "struct UserAccounts.MillerInput",
         "name": "input",
         "type": "tuple"
       }
@@ -2582,7 +1903,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.RetailerInput",
+        "internalType": "struct UserAccounts.RetailerInput",
         "name": "input",
         "type": "tuple"
       }
@@ -2627,7 +1948,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct Storage.WholesalerInput",
+        "internalType": "struct UserAccounts.WholesalerInput",
         "name": "input",
         "type": "tuple"
       }
@@ -2690,166 +2011,6 @@
         "internalType": "string",
         "name": "contactNumber",
         "type": "string"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "riceDamageRecords",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "userId",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "riceType",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "quantity",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "damageDate",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "riceTransactions",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "fromParty",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "toParty",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "riceType",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "quantity",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "sentRiceTxs",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "sentTxs",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "transactions",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "fromParty",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "toParty",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "productType",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "quantity",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",

@@ -57,6 +57,7 @@
                 <th>Miller</th>
                 <th>Rice Type</th>
                 <th>Qty (kg)</th>
+                <th>Block ID</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -117,6 +118,7 @@
                 <th>Rice Type</th>
                 <th>Qty (kg)</th>
                 <th>Reason</th>
+                <th>Block ID</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -146,6 +148,7 @@
                   <th>Miller</th>
                   <th>Rice Type</th>
                   <th>Qty (kg)</th>
+                  <th>Block ID</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -257,6 +260,7 @@
             riceType: t.type,
             qty: parseFloat(t.quantity) || 0,
             tx_id: t.id,
+            block_hash: t.block_hash || null,
           }));
         } catch (e) {
           console.error("Could not load server transactions", e);
@@ -273,9 +277,14 @@
         const recent = purchases.slice().reverse().slice(0, 10);
         recent.forEach((r) => {
           const tr = document.createElement("tr");
+          const blockIdDisplay = r.block_hash
+            ? r.block_hash.substring(0, 10) + "..."
+            : "Not available";
           tr.innerHTML = `<td>${new Date(r.when).toLocaleString()}</td><td>${
             r.fromName
-          }</td><td>${r.riceType}</td><td>${r.qty}</td>`;
+          }</td><td>${r.riceType}</td><td>${r.qty}</td><td title="${
+            r.block_hash || ""
+          }">${blockIdDisplay}</td>`;
           pBody.appendChild(tr);
         });
 
@@ -284,9 +293,14 @@
           .reverse()
           .forEach((r) => {
             const tr = document.createElement("tr");
+            const blockIdDisplay = r.block_hash
+              ? r.block_hash.substring(0, 10) + "..."
+              : "Not available";
             tr.innerHTML = `<td>${new Date(r.when).toLocaleString()}</td><td>${
               r.fromName
-            }</td><td>${r.riceType}</td><td>${r.qty}</td>`;
+            }</td><td>${r.riceType}</td><td>${r.qty}</td><td title="${
+              r.block_hash || ""
+            }">${blockIdDisplay}</td>`;
             hBody.appendChild(tr);
           });
       }
@@ -336,10 +350,16 @@
           damages.forEach((d) => {
             const tr = document.createElement("tr");
             const displayDate = d.damage_date || d.created_at;
+            const blockIdDisplay = d.block_hash
+              ? d.block_hash.substring(0, 10) + "..."
+              : "Not available";
             tr.innerHTML = `<td>${new Date(displayDate).toLocaleString()}</td>
                           <td>${d.paddy_type}</td>
                           <td>${d.quantity}</td>
-                          <td>${d.reason}</td>`;
+                          <td>${d.reason}</td>
+                          <td title="${
+                            d.block_hash || ""
+                          }">${blockIdDisplay}</td>`;
             dBody.appendChild(tr);
           });
         } catch (e) {

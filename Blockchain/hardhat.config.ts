@@ -7,6 +7,13 @@ export default defineConfig({
     profiles: {
       default: {
         version: "0.8.28",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+          viaIR: true,
+        },
       },
       production: {
         version: "0.8.28",
@@ -15,6 +22,7 @@ export default defineConfig({
             enabled: true,
             runs: 200,
           },
+          viaIR: true,
         },
       },
     },
@@ -33,6 +41,14 @@ export default defineConfig({
       chainType: "l1",
       url: configVariable("SEPOLIA_RPC_URL"),
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+    },
+    accounts: {
+      type: "http",
+      url: "http://127.0.0.1:8545",
+    },
+    operations: {
+      type: "http",
+      url: "http://127.0.0.1:8546",
     },
   },
 });

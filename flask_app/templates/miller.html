@@ -68,6 +68,7 @@
                 <th>Source</th>
                 <th>Paddy Type</th>
                 <th>Qty (kg)</th>
+                <th>Block ID</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -122,6 +123,7 @@
                 <th>Input (kg)</th>
                 <th>Output Rice (kg)</th>
                 <th>Yield (%)</th>
+                <th>Block ID</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -161,14 +163,47 @@
         </div>
 
         <h3 style="margin-top: 18px">Recent Damages</h3>
-        <div class="table-wrap">
-          <table class="data-table" id="damagesTable">
+        <div class="tabs" style="margin-bottom: 12px">
+          <ul
+            style="
+              display: flex;
+              gap: 8px;
+              list-style: none;
+              padding: 0;
+              margin: 0;
+            "
+          >
+            <li>
+              <button id="damagePaddyTab" class="btn primary">Paddy</button>
+            </li>
+            <li><button id="damageRiceTab" class="btn">Rice</button></li>
+          </ul>
+        </div>
+
+        <div class="table-wrap" id="damagesPaddyPanel">
+          <table class="data-table" id="damagesPaddyTable">
             <thead>
               <tr>
                 <th>Date</th>
                 <th>Paddy Type</th>
                 <th>Qty (kg)</th>
                 <th>Reason</th>
+                <th>Block ID</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="table-wrap" id="damagesRicePanel" hidden>
+          <table class="data-table" id="damagesRiceTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Rice Type</th>
+                <th>Qty (kg)</th>
+                <th>Reason</th>
+                <th>Block ID</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -201,6 +236,7 @@
                   <th>Source</th>
                   <th>Paddy Type</th>
                   <th>Qty (kg)</th>
+                  <th>Block ID</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -219,6 +255,7 @@
                   <th>Input Paddy (kg)</th>
                   <th>Output Rice (kg)</th>
                   <th>Yield (%)</th>
+                  <th>Block ID</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -344,6 +381,7 @@
             paddyType: r.type || "",
             qty: Number(r.quantity) || 0,
             tx_id: r.id,
+            block_hash: r.block_hash || null,
           }));
         } catch (e) {
           console.error("Could not load server transactions", e);
@@ -360,11 +398,14 @@
         const recent = purchases.slice().reverse().slice(0, 10);
         recent.forEach((r) => {
           const tr = document.createElement("tr");
+          const hashDisplay = r.block_hash
+            ? String(r.block_hash).slice(0, 12) + "..."
+            : "Not available";
           tr.innerHTML = `<td>${new Date(r.when).toLocaleString()}</td><td>${
             r.fromType
           }</td><td>${r.sourceName}</td><td>${r.paddyType}</td><td>${
             r.qty
-          }</td>`;
+          }</td><td>${hashDisplay}</td>`;
           pBody.appendChild(tr);
         });
 
@@ -373,11 +414,14 @@
           .reverse()
           .forEach((r) => {
             const tr = document.createElement("tr");
+            const hashDisplay = r.block_hash
+              ? String(r.block_hash).slice(0, 12) + "..."
+              : "Not available";
             tr.innerHTML = `<td>${new Date(r.when).toLocaleString()}</td><td>${
               r.fromType
             }</td><td>${r.sourceName}</td><td>${r.paddyType}</td><td>${
               r.qty
-            }</td>`;
+            }</td><td>${hashDisplay}</td>`;
             hBody.appendChild(tr);
           });
       }
@@ -439,6 +483,9 @@
             const outputQty = parseFloat(r.output_rice) || 0;
             const yield_percent =
               inputQty > 0 ? ((outputQty / inputQty) * 100).toFixed(2) : 0;
+            const hashDisplay = r.block_hash
+              ? String(r.block_hash).slice(0, 12) + "..."
+              : "Not available";
             const tr = document.createElement("tr");
             const displayDate = r.milling_date || r.created_at;
             tr.innerHTML = `<td>${new Date(
@@ -447,7 +494,8 @@
                           <td>${r.paddy_type}</td>
                           <td>${inputQty.toFixed(2)}</td>
                           <td>${outputQty.toFixed(2)}</td>
-                          <td>${yield_percent}%</td>`;
+                          <td>${yield_percent}%</td>
+                          <td>${hashDisplay}</td>`;
             mBody.appendChild(tr);
           });
         } catch (e) {
@@ -595,12 +643,16 @@
           // POST the damage to the server
           (async () => {
             try {
+              const kind = qs("#damageRiceTab").classList.contains("primary")
+                ? "rice"
+                : "paddy";
               const payload = {
                 user_id: currentUser ? currentUser.user_id : null,
                 paddy_type: paddyType,
                 quantity: qty,
                 reason: reason,
                 damage_date: new Date().toISOString(),
+                kind: kind,
               };
               const resp = await fetch("/api/damages", {
                 method: "POST",
@@ -614,8 +666,8 @@
                 );
                 return;
               }
-              // refresh from server
-              await renderDamageTable();
+              // refresh paddy damage table from server
+              await renderPaddyDamageTable();
               qs("#damageForm").reset();
               alert("Damage recorded successfully");
             } catch (err) {
@@ -625,7 +677,8 @@
           })();
         });
 
-        renderDamageTable();
+        setupDamageTabs();
+        await renderPaddyDamageTable();
         renderMillingTable();
 
         // Milling form handler
@@ -702,6 +755,9 @@
             const outputQty = parseFloat(r.output_rice) || 0;
             const yield_percent =
               inputQty > 0 ? ((outputQty / inputQty) * 100).toFixed(2) : 0;
+            const hashDisplay = r.block_hash
+              ? String(r.block_hash).slice(0, 12) + "..."
+              : "Not available";
             const tr = document.createElement("tr");
             const displayDate = r.milling_date || r.created_at;
             tr.innerHTML = `<td>${new Date(
@@ -710,7 +766,8 @@
                           <td>${r.paddy_type}</td>
                           <td>${inputQty.toFixed(2)}</td>
                           <td>${outputQty.toFixed(2)}</td>
-                          <td>${yield_percent}%</td>`;
+                          <td>${yield_percent}%</td>
+                          <td>${hashDisplay}</td>`;
             mBody.appendChild(tr);
           });
         } catch (e) {
@@ -718,29 +775,91 @@
         }
       }
 
-      async function renderDamageTable() {
-        const dBody = qs("#damagesTable tbody");
+      async function renderPaddyDamageTable() {
+        const dBody = qs("#damagesPaddyTable tbody");
         dBody.innerHTML = "";
         try {
           const userId = currentUser ? currentUser.user_id : null;
           const url = userId
-            ? `/api/damages?user_id=${encodeURIComponent(userId)}`
-            : "/api/damages";
+            ? `/api/damages?user_id=${encodeURIComponent(userId)}&kind=paddy`
+            : "/api/damages?kind=paddy";
           const res = await fetch(url);
-          if (!res.ok) throw new Error("Failed to load damages");
+          if (!res.ok) throw new Error("Failed to load paddy damages");
           const damages = await res.json();
           damages.forEach((d) => {
             const tr = document.createElement("tr");
             const displayDate = d.damage_date || d.created_at;
+            const hashDisplay = d.block_hash
+              ? String(d.block_hash).slice(0, 12) + "..."
+              : "Not available";
             tr.innerHTML = `<td>${new Date(displayDate).toLocaleString()}</td>
                           <td>${d.paddy_type}</td>
                           <td>${d.quantity}</td>
-                          <td>${d.reason}</td>`;
+                          <td>${d.reason}</td>
+                          <td title="${
+                            d.block_hash || ""
+                          }">${hashDisplay}</td>`;
             dBody.appendChild(tr);
           });
         } catch (e) {
-          console.error("Could not load damages:", e);
+          console.error("Could not load paddy damages:", e);
         }
+      }
+
+      async function renderRiceDamageTable() {
+        const dBody = qs("#damagesRiceTable tbody");
+        dBody.innerHTML = "";
+        try {
+          const userId = currentUser ? currentUser.user_id : null;
+          const url = userId
+            ? `/api/damages?user_id=${encodeURIComponent(userId)}&kind=rice`
+            : "/api/damages?kind=rice";
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Failed to load rice damages");
+          const damages = await res.json();
+          damages.forEach((d) => {
+            const tr = document.createElement("tr");
+            const displayDate = d.damage_date || d.created_at;
+            const hashDisplay = d.block_hash
+              ? String(d.block_hash).slice(0, 12) + "..."
+              : "Not available";
+            tr.innerHTML = `<td>${new Date(
+              displayDate
+            ).toLocaleDateString()}</td>
+                          <td>${d.paddy_type || d.rice_type}</td>
+                          <td>${d.quantity}</td>
+                          <td>${d.reason}</td>
+                          <td title="${
+                            d.block_hash || ""
+                          }">${hashDisplay}</td>`;
+            dBody.appendChild(tr);
+          });
+        } catch (e) {
+          console.error("Could not load rice damages:", e);
+        }
+      }
+
+      function setupDamageTabs() {
+        const pTab = qs("#damagePaddyTab");
+        const rTab = qs("#damageRiceTab");
+        const pPanel = qs("#damagesPaddyPanel");
+        const rPanel = qs("#damagesRicePanel");
+
+        pTab.addEventListener("click", async () => {
+          pTab.classList.add("primary");
+          rTab.classList.remove("primary");
+          pPanel.hidden = false;
+          rPanel.hidden = true;
+          await renderPaddyDamageTable();
+        });
+
+        rTab.addEventListener("click", async () => {
+          rTab.classList.add("primary");
+          pTab.classList.remove("primary");
+          rPanel.hidden = false;
+          pPanel.hidden = true;
+          await renderRiceDamageTable();
+        });
       }
 
       window.addEventListener("DOMContentLoaded", init);

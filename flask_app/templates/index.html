@@ -915,6 +915,15 @@
               `
                   : ""
               }
+              <strong>Created At:</strong><span>${escapeHtml(
+                user.created_at || user.createdAt || ""
+              )}</span>
+              <strong>Updated At:</strong><span>${escapeHtml(
+                user.updated_at || user.updatedAt || ""
+              )}</span>
+              <strong>Block Hash:</strong><span style="word-break: break-all; font-size: 11px; font-family: monospace;">${escapeHtml(
+                user.block_hash || user.blockHash || "Not available"
+              )}</span>
             </div>
           `;
 
