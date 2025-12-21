@@ -61,7 +61,7 @@
             <thead>
               <tr>
                 <th>When</th>
-                <th>From (type)</th>
+                <th>Hash ID</th>
                 <th>Source</th>
                 <th>Paddy Type</th>
                 <th>Qty (kg)</th>
@@ -387,9 +387,14 @@
             .reverse()
             .forEach((r) => {
               const tr = document.createElement("tr");
+              const hashDisplay = r.block_hash
+                ? String(r.block_hash).slice(0, 12) + "..."
+                : "Not available";
               tr.innerHTML = `<td>${new Date(
                 r.datetime || r.created_at
-              ).toLocaleString()}</td><td></td><td>${String(r.from)}</td><td>${
+              ).toLocaleString()}</td><td title="${
+                r.block_hash || ""
+              }">${hashDisplay}</td><td>${String(r.from)}</td><td>${
                 r.type || ""
               }</td><td>${r.quantity || 0}</td>`;
               tbody.appendChild(tr);

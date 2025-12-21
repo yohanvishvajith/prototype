@@ -28,7 +28,13 @@
 
         <div class="card">
           <form id="purchaseForm">
-            <label for="millerSelect">Purchase From Miller</label>
+            <label for="purchaseFromType">Purchase From</label>
+            <select id="purchaseFromType" required>
+              <option value="Miller">Miller</option>
+              <option value="PMB">PMB</option>
+            </select>
+
+            <label for="millerSelect">Source</label>
             <select id="millerSelect" required>
               <option value="">Loading...</option>
             </select>
@@ -221,24 +227,36 @@
         }
       }
 
-      async function populateMillerSelect() {
-        const millers = await fetchMillers();
+      async function populateMillerSelect(sourceType) {
         const sel = qs("#millerSelect");
         sel.innerHTML = "";
         const ph = document.createElement("option");
         ph.value = "";
-        ph.textContent = "Select miller";
-        sel.appendChild(ph);
-        millers.forEach((m) => {
-          const o = document.createElement("option");
-          o.value = m.id;
-          o.textContent =
-            (m.full_name || m.name || "") +
-            " (" +
-            (m.user_code || m.id || "") +
-            ")";
-          sel.appendChild(o);
-        });
+
+        if (sourceType === "PMB") {
+          // For PMB, just show PMB option
+          ph.textContent = "Select PMB";
+          sel.appendChild(ph);
+          const pmbOpt = document.createElement("option");
+          pmbOpt.value = "PMB";
+          pmbOpt.textContent = "Government (PMB)";
+          sel.appendChild(pmbOpt);
+        } else {
+          // For Miller, fetch and show all millers
+          const millers = await fetchMillers();
+          ph.textContent = "Select miller";
+          sel.appendChild(ph);
+          millers.forEach((m) => {
+            const o = document.createElement("option");
+            o.value = m.id;
+            o.textContent =
+              (m.full_name || m.name || "") +
+              " (" +
+              (m.user_code || m.id || "") +
+              ")";
+            sel.appendChild(o);
+          });
+        }
       }
 
       async function loadServerTransactions() {
@@ -419,7 +437,13 @@
         currentUser = me;
         console.log("Current user (wholesaler):", currentUser);
 
-        await populateMillerSelect();
+        const fromTypeSel = qs("#purchaseFromType");
+        await populateMillerSelect(fromTypeSel.value);
+
+        // Listen for purchase type changes
+        fromTypeSel.addEventListener("change", (e) => {
+          populateMillerSelect(e.target.value);
+        });
 
         // Populate rice type dropdowns
         const types = await fetchPaddyTypes();

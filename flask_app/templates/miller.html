@@ -64,7 +64,6 @@
             <thead>
               <tr>
                 <th>When</th>
-                <th>From (type)</th>
                 <th>Source</th>
                 <th>Paddy Type</th>
                 <th>Qty (kg)</th>
@@ -139,10 +138,6 @@
             <label for="damagePaddyType">Paddy Type</label>
             <select id="damagePaddyType" required>
               <option value="">Select paddy type</option>
-              <option value="Samba">Samba</option>
-              <option value="Nadu">Nadu</option>
-              <option value="Keeri Samba">Keeri Samba</option>
-              <option value="Other">Other</option>
             </select>
 
             <label for="damageQty">Damaged Quantity (kg)</label>
@@ -232,7 +227,6 @@
               <thead>
                 <tr>
                   <th>When</th>
-                  <th>From (type)</th>
                   <th>Source</th>
                   <th>Paddy Type</th>
                   <th>Qty (kg)</th>
@@ -402,8 +396,8 @@
             ? String(r.block_hash).slice(0, 12) + "..."
             : "Not available";
           tr.innerHTML = `<td>${new Date(r.when).toLocaleString()}</td><td>${
-            r.fromType
-          }</td><td>${r.sourceName}</td><td>${r.paddyType}</td><td>${
+            r.sourceName
+          }</td><td>${r.paddyType}</td><td>${
             r.qty
           }</td><td>${hashDisplay}</td>`;
           pBody.appendChild(tr);
@@ -418,8 +412,8 @@
               ? String(r.block_hash).slice(0, 12) + "..."
               : "Not available";
             tr.innerHTML = `<td>${new Date(r.when).toLocaleString()}</td><td>${
-              r.fromType
-            }</td><td>${r.sourceName}</td><td>${r.paddyType}</td><td>${
+              r.sourceName
+            }</td><td>${r.paddyType}</td><td>${
               r.qty
             }</td><td>${hashDisplay}</td>`;
             hBody.appendChild(tr);
@@ -561,6 +555,20 @@
           o.value = t.name || t.id || "";
           o.textContent = t.name || String(t.id || "");
           millingPaddyTypeSel.appendChild(o);
+        });
+
+        // Populate damage paddy type dropdown
+        const damagePaddyTypeSel = qs("#damagePaddyType");
+        damagePaddyTypeSel.innerHTML = "";
+        const damagePh = document.createElement("option");
+        damagePh.value = "";
+        damagePh.textContent = "Select paddy type";
+        damagePaddyTypeSel.appendChild(damagePh);
+        types.forEach((t) => {
+          const o = document.createElement("option");
+          o.value = t.name || t.id || "";
+          o.textContent = t.name || String(t.id || "");
+          damagePaddyTypeSel.appendChild(o);
         });
 
         // Set default milling date to today

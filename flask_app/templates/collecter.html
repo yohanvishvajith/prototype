@@ -82,10 +82,6 @@
             <label for="damagePaddyType">Paddy Type</label>
             <select id="damagePaddyType" required>
               <option value="">Select paddy type</option>
-              <option value="Samba">Samba</option>
-              <option value="Nadu">Nadu</option>
-              <option value="Keeri Samba">Keeri Samba</option>
-              <option value="Other">Other</option>
             </select>
 
             <label for="damageQty">Damaged Quantity (kg)</label>
@@ -355,6 +351,21 @@
           o.textContent = t.name || String(t.id || "");
           pSel.appendChild(o);
         });
+
+        // Populate damage paddy type dropdown
+        const damagePaddyTypeSel = qs("#damagePaddyType");
+        damagePaddyTypeSel.innerHTML = "";
+        const damagePh = document.createElement("option");
+        damagePh.value = "";
+        damagePh.textContent = "Select paddy type";
+        damagePaddyTypeSel.appendChild(damagePh);
+        types.forEach((t) => {
+          const o = document.createElement("option");
+          o.value = t.name || t.id || "";
+          o.textContent = t.name || String(t.id || "");
+          damagePaddyTypeSel.appendChild(o);
+        });
+
         const fromSel = qs("#purchaseFromType");
         populateSourceSelect(fromSel.value);
         // Load server transactions for this user

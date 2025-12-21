@@ -848,8 +848,10 @@ def api_add_transaction():
                 # Convert quantity to int for blockchain (assuming kg)
                 qty_int = int(float(qty))
                 
-                # Determine if this is a rice transaction (sender is Miller selling rice)
-                is_rice_transaction = isinstance(sender_type, str) and 'miller' in sender_type.lower()
+                # Determine if this is a rice transaction (sender is Miller or PMB selling rice)
+                is_rice_transaction = isinstance(sender_type, str) and (
+                    'miller' in sender_type.lower() or 'pmb' in sender_type.lower()
+                )
                 
                 if is_rice_transaction:
                     # Use rice transaction blockchain function
@@ -1037,35 +1039,80 @@ def api_add_damage():
         except Exception:
             user_type = None
         
-        # Check if sufficient stock exists for this user and paddy type
-        cur.execute('SELECT id, amount FROM `stock` WHERE user_id = %s AND `type` = %s FOR UPDATE', 
-                    (str(user_id), paddy_type))
-        stock_row = cur.fetchone()
+        # Determine if this is rice damage based on kind override or user type
+        kind_override = (payload.get('kind') or '').strip().lower()
+        if kind_override == 'rice':
+            is_rice_damage = True
+        elif kind_override == 'paddy':
+            is_rice_damage = False
+        else:
+            # Determine if this is rice damage (user is Wholesaler, Retailer, Brewer, Animal Food, Exporter, PMB)
+            is_rice_damage = isinstance(user_type, str) and any(
+                role in user_type.lower()
+                for role in ['wholesaler', 'retailer', 'brewer', 'animal', 'exporter', 'pmb']
+            )
         
-        if not stock_row:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            cur.close()
-            conn.close()
-            return jsonify({'ok': False, 'error': f'No stock found for paddy type "{paddy_type}". Cannot record damage.'}), 400
-        
-        stock_id, current_amount = stock_row[0], stock_row[1] if stock_row[1] is not None else 0
-        
-        if float(current_amount) < qty:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            cur.close()
-            conn.close()
-            return jsonify({'ok': False, 'error': f'Insufficient stock. Available: {current_amount} kg, Requested: {qty} kg'}), 400
-        
-        # Deduct from stock
-        new_amount = float(current_amount) - qty
-        cur.execute('UPDATE `stock` SET amount = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s', 
-                    (new_amount, stock_id))
+        # Check stock from appropriate table based on damage type
+        if is_rice_damage:
+            # For rice damage, check rice_stock table
+            cur.execute('SELECT id, quantity FROM `rice_stock` WHERE miller_id = %s AND paddy_type = %s FOR UPDATE', 
+                        (str(user_id), paddy_type))
+            stock_row = cur.fetchone()
+            
+            if not stock_row:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                cur.close()
+                conn.close()
+                return jsonify({'ok': False, 'error': f'No rice stock found for type "{paddy_type}". Cannot record damage.'}), 400
+            
+            stock_id, current_amount = stock_row[0], stock_row[1] if stock_row[1] is not None else 0
+            
+            if float(current_amount) < qty:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                cur.close()
+                conn.close()
+                return jsonify({'ok': False, 'error': f'Insufficient rice stock. Available: {current_amount} kg, Requested: {qty} kg'}), 400
+            
+            # Deduct from rice_stock
+            new_amount = float(current_amount) - qty
+            cur.execute('UPDATE `rice_stock` SET quantity = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s', 
+                        (new_amount, stock_id))
+        else:
+            # For paddy damage, check stock table
+            cur.execute('SELECT id, amount FROM `stock` WHERE user_id = %s AND `type` = %s FOR UPDATE', 
+                        (str(user_id), paddy_type))
+            stock_row = cur.fetchone()
+            
+            if not stock_row:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                cur.close()
+                conn.close()
+                return jsonify({'ok': False, 'error': f'No stock found for paddy type "{paddy_type}". Cannot record damage.'}), 400
+            
+            stock_id, current_amount = stock_row[0], stock_row[1] if stock_row[1] is not None else 0
+            
+            if float(current_amount) < qty:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                cur.close()
+                conn.close()
+                return jsonify({'ok': False, 'error': f'Insufficient stock. Available: {current_amount} kg, Requested: {qty} kg'}), 400
+            
+            # Deduct from stock
+            new_amount = float(current_amount) - qty
+            cur.execute('UPDATE `stock` SET amount = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s', 
+                        (new_amount, stock_id))
         
         # Record damage on blockchain
         block_hash = None
@@ -1083,20 +1130,6 @@ def api_add_damage():
             
             # Convert quantity to int for blockchain (assuming kg)
             qty_int = int(float(qty))
-            
-            # Allow caller to override kind ('rice'|'paddy') via payload; otherwise
-            # determine rice vs paddy based on stored user_type.
-            kind_override = (payload.get('kind') or '').strip().lower()
-            if kind_override == 'rice':
-                is_rice_damage = True
-            elif kind_override == 'paddy':
-                is_rice_damage = False
-            else:
-                # Determine if this is rice damage (user is Wholesaler, Retailer, Brewer, Animal Food, Exporter)
-                is_rice_damage = isinstance(user_type, str) and any(
-                    role in user_type.lower()
-                    for role in ['wholesaler', 'retailer', 'brewer', 'animal', 'exporter']
-                )
             
             if is_rice_damage:
                 # Use rice damage blockchain function
